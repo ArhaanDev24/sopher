@@ -1,0 +1,20 @@
+{
+  "name": "sopher",
+  "version": "0.1.0",
+  "description": "Software capitalization autopilot for Jira (Codegeist 2026)",
+  "private": true,
+  "license": "UNLICENSED",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "node --test \"test/**/*.test.js\"",
+    "lint": "forge lint"
+  },
+  "dependencies": {
+    "@forge/api": "latest",
+    "@forge/bridge": "latest",
+    "@forge/kvs": "latest",
+    "@forge/react": "latest",
+    "@forge/resolver": "latest",
+    "react": "^18.2.0"
+  }
+}
