@@ -80,16 +80,21 @@ export const handler = resolver.getDefinitions();
 // ---- Rovo actions / MCP tools ------------------------------------------------------------
 // Inputs arrive on `payload`. Return compact JSON (the 5 MB action limit is far above this).
 
-const actionSafe = (fn) => async (payload) => {
+// Each call logs its name, inputs and outcome (no figures), so `forge logs` shows what the agent did.
+const actionSafe = (name, fn) => async (payload) => {
+  const { context, ...inputs } = payload ?? {};
+  const started = Date.now();
   try {
-    return await fn(payload ?? {});
+    const result = await fn(inputs);
+    console.log(`[action] ${name} ${JSON.stringify(inputs)} -> ${result?.error ? `error: ${result.error}` : 'ok'} (${Date.now() - started}ms)`);
+    return result;
   } catch (err) {
-    console.error(err);
+    console.error(`[action] ${name} ${JSON.stringify(inputs)} -> error: ${err.message}`);
     return { error: err.message ?? String(err) };
   }
 };
 
-export const getScheduleAction = actionSafe(async ({ projectKey, quarter }) => {
+export const getScheduleAction = actionSafe('get-schedule', async ({ projectKey, quarter }) => {
   const s = await getSchedule({ projectKey, quarter: normalizeQuarter(quarter) });
   return {
     projectKey: s.projectKey,
@@ -102,7 +107,7 @@ export const getScheduleAction = actionSafe(async ({ projectKey, quarter }) => {
   };
 });
 
-export const explainClassificationAction = actionSafe(async ({ issueKey }) => {
+export const explainClassificationAction = actionSafe('explain-classification', async ({ issueKey }) => {
   const c = await getIssueClassification({ issueKey });
   const byStage = {};
   for (const e of c.entries) {
@@ -128,7 +133,7 @@ export const explainClassificationAction = actionSafe(async ({ issueKey }) => {
   };
 });
 
-export const listReviewQueueAction = actionSafe(async ({ projectKey, quarter }) => {
+export const listReviewQueueAction = actionSafe('list-review-queue', async ({ projectKey, quarter }) => {
   const s = await getSchedule({ projectKey, quarter: normalizeQuarter(quarter) });
   return { projectKey: s.projectKey, quarter: s.quarter, currency: s.currency, count: s.reviewQueue.length, items: s.reviewQueue };
 });
