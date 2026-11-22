@@ -73,7 +73,7 @@ function releaseDateOf(raw) {
   return dates[0] ?? null;
 }
 
-async function normalizeEpic(requester, raw) {
+export async function normalizeEpic(requester, raw) {
   const meta = await epicProperty(requester, raw.key);
   return {
     id: raw.id,
@@ -94,6 +94,7 @@ async function normalizeIssue(requester, raw) {
     key: raw.key,
     summary: f.summary,
     issueType: f.issuetype?.name ?? 'Unknown',
+    isEpic: f.issuetype?.hierarchyLevel === 1 || f.issuetype?.name === 'Epic',
     status: f.status?.name ?? null,
     parentKey: f.parent?.key ?? null,
     epicKey: null, // resolved by resolveEpicKeys
@@ -148,6 +149,7 @@ export async function loadIssue(issueKey, requester = api.asUser()) {
   const raw = await get(issueKey, ISSUE_FIELDS);
   if (!raw) return null;
   const issue = await normalizeIssue(requester, raw);
+  if (issue.isEpic) return { issue, epic: null, asEpic: await normalizeEpic(requester, raw) };
 
   let epicRaw = null;
   let parentKey = issue.parentKey;

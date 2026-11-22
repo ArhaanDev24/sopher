@@ -6,6 +6,7 @@ import api, { route } from '@forge/api';
 
 import {
   getIssueClassification, getSchedule, normalizeIssueKey, normalizeProjectKey, normalizeQuarter, publishMemo,
+  setEpicAuthorization,
 } from './service.js';
 import { getSettings, saveSettings, setOverride } from './data/store.js';
 import { seedDemoData } from './data/seed.js';
@@ -37,6 +38,12 @@ resolver.define('getIssueClassification', safe(({ context }) => {
   const issueKey = context.extension?.issue?.key;
   if (!issueKey) throw new Error('No issue in context.');
   return getIssueClassification({ issueKey, cloudId: context.cloudId });
+}));
+
+resolver.define('setEpicAuthorization', safe(({ payload, context }) => {
+  const issueKey = context.extension?.issue?.key;
+  if (!issueKey) throw new Error('No issue in context.');
+  return setEpicAuthorization({ issueKey, authorizedAt: payload.authorizedAt ?? null });
 }));
 
 resolver.define('setOverride', safe(async ({ payload, context }) => {
@@ -113,6 +120,19 @@ export const getScheduleAction = actionSafe('get-schedule', async ({ projectKey,
 
 export const explainClassificationAction = actionSafe('explain-classification', async ({ issueKey, cloudId }) => {
   const c = await getIssueClassification({ issueKey, cloudId });
+  if (c.mode === 'epic') {
+    return {
+      issueKey: c.key,
+      summary: c.summary,
+      type: 'Epic (software asset)',
+      quarter: c.quarter,
+      currency: c.currency,
+      authorizedAt: c.authorizedAt,
+      asset: c.asset,
+      itemsNeedingReview: c.reviewCount,
+      evidence: describeEvidence(summarizeEvidence(c.evidence)),
+    };
+  }
   const byStage = {};
   for (const e of c.entries) {
     const b = (byStage[e.stage] ??= { hours: 0, cost: 0, treatment: e.treatment });

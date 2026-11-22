@@ -87,10 +87,12 @@ const App = () => {
         <SectionMessage appearance="error"><Text>{seedResult.error}</Text></SectionMessage>
       )}
       {seedResult?.ok && (
-        <SectionMessage appearance="success" title="Demo data loaded">
+        <SectionMessage appearance="success" title={seedResult.data.alreadyLoaded ? 'Demo data already loaded' : 'Demo data loaded'}>
           <Text>
-            Created {seedResult.data.epics} epics, {seedResult.data.issues} issues and {seedResult.data.worklogs} time logs
-            in {seedResult.data.projectKey}. Open Apps → Capitalization to see the schedule.
+            {seedResult.data.alreadyLoaded
+              ? `${seedResult.data.projectKey} already has the demo data, so nothing was added. `
+              : `${seedResult.data.resumed ? 'Finished loading' : 'Created'} ${seedResult.data.epics} epics, ${seedResult.data.issues} issues and ${seedResult.data.worklogs} time logs in ${seedResult.data.projectKey}. `}
+            Open Apps → Capitalization to see the schedule.
           </Text>
           {seedResult.data.warnings.length > 0 && (
             <List type="unordered">

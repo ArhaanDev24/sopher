@@ -94,5 +94,7 @@ test('a crashed run can be retried and finishes without duplicates', async () =>
   assert.equal(jira.versions.length, 1);
   assert.equal([...jira.issues.values()].reduce((a, i) => a + i.worklogs.length, 0), totalLogs);
 
-  await assert.rejects(seedDemoData('DEMO', { now, requester: jira.requester }), /already has the full demo data/);
+  const again = await seedDemoData('DEMO', { now, requester: jira.requester });
+  assert.equal(again.alreadyLoaded, true);
+  assert.equal(jira.issues.size, 19); // nothing duplicated
 });

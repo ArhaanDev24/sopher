@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import ForgeReconciler, {
-  Button, ButtonGroup, Heading, Inline, Label, Link, List, ListItem, Lozenge, SectionMessage, Select, Spinner, Stack, Text, TextArea,
+  Button, ButtonGroup, DatePicker, Heading, Inline, Label, Link, List, ListItem, Lozenge, SectionMessage, Select, Spinner, Stack, Text,
+  TextArea,
 } from '@forge/react';
 import { invoke } from '@forge/bridge';
 import { CONFIDENCE_LOZENGE, money, STAGE_LABEL, TREATMENT_LOZENGE } from './format';
@@ -47,6 +48,77 @@ const Evidence = ({ label, evidence }) => {
   );
 };
 
+const STAGE_APPEARANCE = { preliminary: 'default', development: 'success', 'post-implementation': 'moved' };
+
+/** Epic = software asset: stage, editable project authorization date, dates, cost and evidence. */
+const EpicView = ({ data, reload }) => {
+  const [date, setDate] = useState(data.authorizedAt ?? '');
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState(null);
+  const a = data.asset;
+  const cur = data.currency;
+
+  const save = async (value) => {
+    setSaving(true);
+    setMessage(null);
+    const res = await invoke('setEpicAuthorization', { authorizedAt: value });
+    setSaving(false);
+    if (!res.ok) return setMessage({ appearance: 'error', text: res.error });
+    if (!value) setDate('');
+    setMessage({ appearance: 'success', text: value ? `Project authorized on ${value}.` : 'Authorization date cleared.' });
+    reload();
+  };
+
+  return (
+    <Stack space="space.200">
+      <Inline space="space.100">
+        <Lozenge appearance="new" isBold>Software asset</Lozenge>
+        {a?.stageAtQuarterEnd && <Lozenge appearance={STAGE_APPEARANCE[a.stageAtQuarterEnd]}>{STAGE_LABEL[a.stageAtQuarterEnd]}</Lozenge>}
+      </Inline>
+
+      {a && (
+        <List type="unordered">
+          <ListItem><Text>Capitalized to date: {money(a.capexToDate, cur)}</Text></ListItem>
+          <ListItem><Text>This quarter ({data.quarter}): {money(a.capex, cur)} capitalized · {money(a.opex, cur)} expensed</Text></ListItem>
+          <ListItem>
+            <Text>
+              Placed in service: {a.releasedAt
+                ? `${a.releasedAt}${a.releaseSource === 'deployment' ? ' (first production deployment)' : ' (Jira release)'}`
+                : 'not yet released'}
+            </Text>
+          </ListItem>
+          <ListItem><Text>Amortization this quarter: {money(a.amortization, cur)} · Net book value: {money(a.netBookValue, cur)}</Text></ListItem>
+          {data.reviewCount > 0 && <ListItem><Text>{data.reviewCount} item(s) in this epic need controller review</Text></ListItem>}
+        </List>
+      )}
+
+      <Heading as="h4">Project authorization</Heading>
+      <Text>
+        Work becomes capitalizable once the project is authorized (for example, an approved spec or funding decision).
+        Work before this date is expensed as preliminary.
+      </Text>
+      <Label labelFor="authorized">Authorized on</Label>
+      <DatePicker
+        id="authorized"
+        value={date || undefined}
+        onChange={(v) => setDate(v ?? '')}
+        dateFormat="YYYY-MM-DD"
+        placeholder="YYYY-MM-DD (not authorized)"
+      />
+      <ButtonGroup>
+        <Button appearance="primary" onClick={() => save(date)} isDisabled={!date || saving || date === data.authorizedAt}>
+          Save date
+        </Button>
+        {data.authorizedAt && <Button appearance="subtle" onClick={() => save(null)} isDisabled={saving}>Clear</Button>}
+      </ButtonGroup>
+      {message && <SectionMessage appearance={message.appearance}><Text>{message.text}</Text></SectionMessage>}
+
+      <Heading as="h4">Evidence (Teamwork Graph)</Heading>
+      <Evidence label="Linked to this epic" evidence={data.evidence} />
+    </Stack>
+  );
+};
+
 const App = () => {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
@@ -75,6 +147,7 @@ const App = () => {
 
   if (error && !data) return <SectionMessage appearance="error"><Text>{error}</Text></SectionMessage>;
   if (!data) return <Spinner label="Classifying" />;
+  if (data.mode === 'epic') return <EpicView data={data} reload={load} />;
 
   const t = TREATMENT_LOZENGE[data.treatment];
   const c = CONFIDENCE_LOZENGE[data.confidence];

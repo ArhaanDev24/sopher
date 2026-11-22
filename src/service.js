@@ -4,7 +4,7 @@
 import { classifyIssue } from './engine/classify.js';
 import { buildSchedule } from './engine/schedule.js';
 import { currentQuarter, parseQuarter, recentQuarters } from './engine/dates.js';
-import { loadIssue, loadProject } from './data/jira.js';
+import { loadIssue, loadProject, setEpicMeta } from './data/jira.js';
 import { getOverrides, getSettings } from './data/store.js';
 import { buildMemo } from './engine/memo.js';
 import { publishPage } from './data/confluence.js';
@@ -59,6 +59,7 @@ export async function getIssueClassification({ issueKey, cloudId }) {
   const [loaded, settings, overrides] = await Promise.all([loadIssue(key), getSettings(), getOverrides()]);
   if (!loaded) throw new Error(`Issue ${key} was not found, or you don't have permission to view it.`);
   const { issue } = loaded;
+  if (loaded.asEpic) return getEpicAsset({ epic: loaded.asEpic, cloudId, currency: settings.currency });
   const [issueEvidence, epicEvidence] = await Promise.all([
     cloudId ? fetchEvidence({ cloudId, issueId: issue.id }) : null,
     cloudId && loaded.epic ? fetchEvidence({ cloudId, issueId: loaded.epic.id }) : null,
@@ -71,6 +72,48 @@ export async function getIssueClassification({ issueKey, cloudId }) {
     evidence: { issue: issueEvidence, epic: epicEvidence },
     ...classifyIssue(issue, epic, settings, overrides[key]),
   };
+}
+
+/** The software-asset view of an epic: stage, dates, cost to date, amortization and evidence. */
+async function getEpicAsset({ epic, cloudId, currency }) {
+  const projectKey = epic.key.split('-')[0];
+  const quarter = currentQuarter();
+  const [schedule, evidence] = await Promise.all([
+    getSchedule({ projectKey, quarter, cloudId }),
+    cloudId ? fetchEvidence({ cloudId, issueId: epic.id }) : null,
+  ]);
+  const asset = schedule.assets.find((a) => a.epicKey === epic.key) ?? null;
+  return {
+    mode: 'epic',
+    key: epic.key,
+    summary: epic.summary,
+    currency,
+    quarter,
+    authorizedAt: epic.authorizedAt ? String(epic.authorizedAt).slice(0, 10) : null,
+    asset,
+    reviewCount: schedule.reviewQueue.filter((r) => r.epicKey === epic.key).length,
+    evidence,
+  };
+}
+
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * Records (or clears) when an epic's project was authorized, which starts the application
+ * development stage. Stored on the epic as an issue property, so Jira's edit permission applies.
+ */
+export async function setEpicAuthorization({ issueKey, authorizedAt }) {
+  const key = normalizeIssueKey(issueKey);
+  const loaded = await loadIssue(key);
+  if (!loaded?.asEpic) throw new Error(`${key} is not an epic. Project authorization is set on epics.`);
+  if (authorizedAt !== null && !(ISO_DAY.test(String(authorizedAt)) && !Number.isNaN(Date.parse(authorizedAt)))) {
+    throw new Error('Use a date like 2026-06-01.');
+  }
+  if (authorizedAt && authorizedAt > new Date().toISOString().slice(0, 10)) {
+    throw new Error('The authorization date can\'t be in the future.');
+  }
+  await setEpicMeta(key, { authorizedAt: authorizedAt ?? null });
+  return { key, authorizedAt: authorizedAt ?? null };
 }
 
 const SPACE_KEY = /^[A-Za-z0-9~][A-Za-z0-9_~-]{0,254}$/;

@@ -107,7 +107,18 @@ export async function seedDemoData(projectKey, { now = new Date(), requester = a
   const missingLog = (issue) => issue.worklogs.some((w) => !existing.get(issue.summary)?.loggedDays.has(w.started.slice(0, 10)));
   const complete = [...dataset.epics, ...dataset.issues].every((x) => existing.has(x.summary))
     && !dataset.issues.some(missingLog);
-  if (complete) throw new Error(`Project ${project.key} already has the full demo data (issues labelled ${DEMO_LABEL}).`);
+  if (complete) {
+    return {
+      alreadyLoaded: true,
+      resumed: false,
+      projectKey: project.key,
+      epics: dataset.epics.length,
+      issues: dataset.issues.length,
+      worklogs: dataset.issues.reduce((n, i) => n + i.worklogs.length, 0),
+      shiftedMonths: shiftMonths,
+      warnings: [],
+    };
+  }
   const types = await issueTypesFor(requester, project.key);
   const base = { project: { key: project.key } };
 
@@ -160,6 +171,7 @@ export async function seedDemoData(projectKey, { now = new Date(), requester = a
   }
 
   return {
+    alreadyLoaded: false,
     resumed: existing.size > 0,
     projectKey: project.key,
     epics: epicKeys.size,
