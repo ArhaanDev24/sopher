@@ -38,7 +38,8 @@ Forge logs record which Rovo action ran, with its inputs (project key, quarter, 
 
 - **Uninstalling Sopher** deletes its Forge storage (settings and overrides).
 - Epic metadata, demo issues and memo pages are ordinary Jira and Confluence content. Delete them in Jira or Confluence like any other content.
-- To have an account ID removed from override records before uninstalling, open an issue (link below). Automatic removal when Atlassian reports a closed account is planned.
+- **Closed accounts:** once a day, Sopher reports the account IDs in its override records to Atlassian's personal data reporting API. When Atlassian says an account is closed, Sopher removes that account ID and name, keeps the decision and reason, and credits it to "Former user". When an account is updated, Sopher refreshes the stored display name.
+- To have an account ID removed sooner, open an issue (link below).
 
 ## Contact
 

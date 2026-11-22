@@ -9,7 +9,7 @@ modules:
   jira:issuePanel:
     - key: sopher-issue-panel
       title: Capitalization
-      icon: https://developer.atlassian.com/platform/forge/images/icons/issue-panel-icon.svg
+      icon: resource:assets;logo.svg
       resource: issue-panel
       resolver:
         function: resolver
@@ -24,6 +24,7 @@ modules:
   rovo:agent:
     - key: cap-analyst
       name: Cap Analyst
+      icon: resource:assets;logo.svg
       description: Explains how engineering work in Jira is capitalized or expensed
         under ASC 350-40 / IAS 38.
       prompt: resource:agent-prompt;prompt.txt
@@ -115,6 +116,10 @@ modules:
         - get-schedule
         - explain-classification
         - list-review-queue
+  scheduledTrigger:
+    - key: personal-data-check
+      function: fn-personal-data
+      interval: day
   function:
     - key: resolver
       handler: index.handler
@@ -126,6 +131,8 @@ modules:
       handler: index.listReviewQueueAction
     - key: fn-draft-memo
       handler: index.draftMemoAction
+    - key: fn-personal-data
+      handler: index.personalDataJob
 resources:
   - key: dashboard
     path: src/frontend/dashboard.jsx
@@ -135,6 +142,8 @@ resources:
     path: src/frontend/admin.jsx
   - key: agent-prompt
     path: src/agent
+  - key: assets
+    path: assets
 permissions:
   scopes:
     - read:jira-work

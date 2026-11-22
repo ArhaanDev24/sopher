@@ -20,8 +20,8 @@ export function xml(value) {
 const money = (n, currency) =>
   new Intl.NumberFormat('en-US', { style: 'currency', currency, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n ?? 0);
 
-const table = (headers, rows) => [
-  '<table><tbody>',
+const table = (headers, rows, { wide = false } = {}) => [
+  wide ? '<table data-layout="full-width"><tbody>' : '<table><tbody>',
   `<tr>${headers.map((h) => `<th><p>${xml(h)}</p></th>`).join('')}</tr>`,
   ...rows.map((r) => `<tr>${r.map((c) => `<td><p>${c}</p></td>`).join('')}</tr>`),
   '</tbody></table>',
@@ -73,6 +73,7 @@ export function buildMemo(schedule, settings, { generatedAt = new Date(), siteUr
           m(a.capex), m(a.opex), m(a.capexToDate), m(a.amortization), m(a.netBookValue),
           xml(a.evidenceText ?? 'Not checked'),
         ]),
+        { wide: true },
       ),
     unlinked && unlinked.issueCount > 0
       ? `<p>Work not linked to any epic: ${m(unlinked.opex)} expensed this quarter, pending review.</p>`

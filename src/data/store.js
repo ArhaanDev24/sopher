@@ -37,3 +37,8 @@ export async function setOverride(issueKey, override) {
   await kvs.set(OVERRIDES_KEY, all);
   return all[issueKey] ?? null;
 }
+
+/** Replaces all overrides (used by the daily personal-data job). */
+export async function saveOverrides(all) {
+  await kvs.set(OVERRIDES_KEY, all);
+}

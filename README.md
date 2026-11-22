@@ -1,8 +1,12 @@
+<p align="center"><img src="assets/logo-128.png" width="96" alt="Sopher logo"></p>
+
 # Sopher: software capitalization autopilot for Jira
 
 Sopher turns the engineering work already tracked in Jira into an audit-ready **software capitalization schedule**. It follows ASC 350-40 / IAS 38: it classifies every time log as capitalized or expensed, gives a reason for each decision, amortizes each software asset, and publishes the quarter-end memo to Confluence.
 
 Built on Atlassian Forge for **Codegeist 2026**, in the *Apps for Business Teams* category (finance).
+
+![Capitalization dashboard](docs/screenshots/dashboard.jpg)
 
 ## The problem
 
@@ -16,11 +20,21 @@ Software companies must capitalize development-stage work on internal-use softwa
   - post-implementation (after release): expensed
 
   Bugs, maintenance and spikes are always expensed. Unclear items go to a review queue. Every decision comes with reasons.
-- **Dashboard** (Apps → Capitalization): capitalized vs. expensed totals, capitalization rate, amortization, net book value, a four-quarter trend, each software asset (epic) with its stage, and the review queue.
-- **Issue panel:** how each issue was treated and why, with a controller override that requires a reason.
+- **Dashboard** (Apps → Capitalization): capitalized vs. expensed totals, capitalization rate, amortization, net book value, a four-quarter trend, each software asset (epic) with its stage and evidence, and the review queue.
+- **Issue panel:** how each issue was treated and why, its Teamwork Graph evidence, and a controller override that requires a reason.
+- **Epic = software asset:** the panel on an epic shows its stage, capitalized cost to date, placed-in-service date, amortization and net book value. It also lets you set the **project authorization date** that starts the capitalizable stage.
 - **Confluence memo:** a one-click quarter-end memo (summary, assets, review items, method, sign-off). Publishing again updates the same page.
+- **Teamwork Graph evidence:** pull requests, deployments and goals linked to each epic and issue. An epic with no release in Jira uses its first successful production deployment as its placed-in-service date.
 - **Rovo agent "Cap Analyst"** with actions `get-schedule`, `explain-classification`, `list-review-queue` and `draft-cap-memo`. The read actions are also exposed as an **MCP server** (`rovo:mcp`).
 - **Demo data loader:** fills an empty project with a sample payments team, so you can try Sopher on an empty site.
+
+| Issue panel | Epic as a software asset |
+|---|---|
+| ![Issue panel](docs/screenshots/issue-panel.jpg) | ![Epic asset view](docs/screenshots/epic-asset.jpg) |
+
+| Assets and review queue | Confluence memo |
+|---|---|
+| ![Assets and review queue](docs/screenshots/assets-and-review.jpg) | ![Confluence memo](docs/screenshots/memo.jpg) |
 
 ## Try it
 
@@ -28,24 +42,25 @@ Software companies must capitalize development-stage work on internal-use softwa
 2. Create an empty company-managed Scrum project, for example key `DEMO`, and make sure time tracking is on.
 3. Go to **Jira settings → Apps → Sopher settings → Demo data**, enter `DEMO`, and click **Load demo data**.
 4. Open **Apps → Capitalization** and choose **2026-Q3** or **2026-Q4**.
+5. Open **DEMO-4** for a split classification, or **DEMO-3** to set a project authorization date and watch the numbers move.
 
 ## Develop
 
 ```bash
 npm install
-npm test            # engine, demo dataset, memo and seeder tests
+npm test            # engine, demo data, memo, seeder, evidence and personal-data tests
 forge deploy -e development
 forge install --site <your-site>.atlassian.net --product jira -e development
 ```
 
 The code is laid out as follows:
-- `src/engine/`: pure classification, schedule, dates and memo logic, with no Forge calls
-- `src/data/`: Jira, Confluence and Forge storage access, plus the demo seeder
-- `src/index.js`: UI resolvers and Rovo actions
+- `src/engine/`: pure classification, schedule, dates, memo, evidence and personal-data logic, with no Forge calls
+- `src/data/`: Jira, Confluence, Teamwork Graph and Forge storage access, plus the demo seeder
+- `src/index.js`: UI resolvers, Rovo actions and the daily personal-data job
 - `src/frontend/`: UI Kit pages
 
 ## Privacy and support
 
-See [PRIVACY.md](PRIVACY.md). For questions and issues, use [GitHub Issues](https://github.com/ArhaanDev24/sopher/issues).
+See [PRIVACY.md](PRIVACY.md). Every day, Sopher checks the account IDs in its override audit trail with Atlassian and anonymizes any closed accounts. For questions and issues, use [GitHub Issues](https://github.com/ArhaanDev24/sopher/issues).
 
 Sopher is decision support: controllers make the final call and can override any classification.

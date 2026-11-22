@@ -2,13 +2,14 @@
 // which are also exposed as MCP tools.
 
 import Resolver from '@forge/resolver';
-import api, { route } from '@forge/api';
+import api, { privacy, route } from '@forge/api';
 
 import {
   getIssueClassification, getSchedule, normalizeIssueKey, normalizeProjectKey, normalizeQuarter, publishMemo,
   setEpicAuthorization,
 } from './service.js';
-import { getSettings, saveSettings, setOverride } from './data/store.js';
+import { getOverrides, getSettings, saveOverrides, saveSettings, setOverride } from './data/store.js';
+import { accountsToReport, applyAccountUpdates } from './engine/personal-data.js';
 import { seedDemoData } from './data/seed.js';
 import { recentQuarters } from './engine/dates.js';
 import { describeEvidence, summarizeEvidence } from './engine/evidence.js';
@@ -174,3 +175,25 @@ export const draftMemoAction = actionSafe('draft-cap-memo', async ({ projectKey,
     note: page.created ? 'Created a new draft memo page.' : `Updated the existing memo page (version ${page.version}).`,
   };
 });
+
+// ---- Personal data (daily scheduled trigger) ------------------------------------------------
+// Reports the account IDs stored in override audit records to Atlassian. Closed accounts are
+// anonymized ("Former user"), and updated accounts get their display name refreshed.
+
+export const personalDataJob = async () => {
+  const overrides = await getOverrides();
+  const accounts = accountsToReport(overrides);
+  if (accounts.length === 0) {
+    console.log('[personal-data] no stored account IDs');
+    return;
+  }
+  const updates = await privacy.reportPersonalData(accounts);
+  const freshNames = {};
+  for (const { accountId } of updates.filter((u) => u.status === 'updated')) {
+    const res = await api.asApp().requestJira(route`/rest/api/3/user?accountId=${accountId}`, { headers: { Accept: 'application/json' } });
+    if (res.ok) freshNames[accountId] = (await res.json()).displayName ?? null;
+  }
+  const { overrides: next, closed, updated } = applyAccountUpdates(overrides, updates, freshNames);
+  if (closed || updated) await saveOverrides(next);
+  console.log(`[personal-data] checked ${accounts.length} account(s): ${closed} closed, ${updated} updated`);
+};
