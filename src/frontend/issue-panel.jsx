@@ -53,6 +53,7 @@ const STAGE_APPEARANCE = { preliminary: 'default', development: 'success', 'post
 /** Epic = software asset: stage, editable project authorization date, dates, cost and evidence. */
 const EpicView = ({ data, reload }) => {
   const [date, setDate] = useState(data.authorizedAt ?? '');
+  const [pickerKey, setPickerKey] = useState(0); // remounts the date picker so a clear empties it
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState(null);
   const a = data.asset;
@@ -64,7 +65,10 @@ const EpicView = ({ data, reload }) => {
     const res = await invoke('setEpicAuthorization', { authorizedAt: value });
     setSaving(false);
     if (!res.ok) return setMessage({ appearance: 'error', text: res.error });
-    if (!value) setDate('');
+    if (!value) {
+      setDate('');
+      setPickerKey((k) => k + 1);
+    }
     setMessage({ appearance: 'success', text: value ? `Project authorized on ${value}.` : 'Authorization date cleared.' });
     reload();
   };
@@ -99,6 +103,7 @@ const EpicView = ({ data, reload }) => {
       </Text>
       <Label labelFor="authorized">Authorized on</Label>
       <DatePicker
+        key={pickerKey}
         id="authorized"
         value={date || undefined}
         onChange={(v) => setDate(v ?? '')}
