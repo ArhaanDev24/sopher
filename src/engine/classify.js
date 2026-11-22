@@ -23,6 +23,7 @@ export const DEFAULT_SETTINGS = Object.freeze({
   ratesByAccountId: {},
   usefulLifeMonths: 36,
   projectKeys: [],
+  confluenceSpaceKey: '',
   expenseIssueTypes: ['Bug', 'Support', 'Incident'],
   researchIssueTypes: ['Spike'],
   capitalizableIssueTypes: ['Story', 'Task', 'Sub-task', 'Subtask', 'Feature'],

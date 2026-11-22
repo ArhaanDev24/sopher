@@ -6,6 +6,9 @@ import { buildSchedule } from './engine/schedule.js';
 import { currentQuarter, parseQuarter } from './engine/dates.js';
 import { loadIssue, loadProject } from './data/jira.js';
 import { getOverrides, getSettings } from './data/store.js';
+import { buildMemo } from './engine/memo.js';
+import { publishPage } from './data/confluence.js';
+import api, { route } from '@forge/api';
 
 const PROJECT_KEY = /^[A-Z][A-Z0-9_]{1,9}$/;
 const ISSUE_KEY = /^[A-Z][A-Z0-9_]{1,9}-\d+$/;
@@ -46,4 +49,23 @@ export async function getIssueClassification({ issueKey }) {
     override: overrides[key] ?? null,
     ...classifyIssue(issue, epic, settings, overrides[key]),
   };
+}
+
+const SPACE_KEY = /^[A-Za-z0-9~][A-Za-z0-9_~-]{0,254}$/;
+
+async function siteBaseUrl() {
+  const res = await api.asUser().requestJira(route`/rest/api/3/serverInfo`, { headers: { Accept: 'application/json' } });
+  return res.ok ? (await res.json()).baseUrl : '';
+}
+
+/** Generates the quarter's capitalization memo and publishes it to Confluence (creates or updates). */
+export async function publishMemo({ projectKey, quarter, spaceKey }) {
+  const settings = await getSettings();
+  const space = String(spaceKey ?? settings.confluenceSpaceKey ?? '').trim();
+  if (!space) throw new Error('No Confluence space given. Set one in Sopher settings, or pass a space key.');
+  if (!SPACE_KEY.test(space)) throw new Error(`"${space}" is not a valid Confluence space key.`);
+  const [schedule, siteUrl] = await Promise.all([getSchedule({ projectKey, quarter }), siteBaseUrl()]);
+  const memo = buildMemo(schedule, settings, { siteUrl });
+  const page = await publishPage({ spaceKey: space, title: memo.title, body: memo.body, siteUrl });
+  return { ...page, title: memo.title, spaceKey: space, projectKey: schedule.projectKey, quarter: schedule.quarter };
 }

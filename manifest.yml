@@ -35,6 +35,7 @@ modules:
         - get-schedule
         - explain-classification
         - list-review-queue
+        - draft-cap-memo
   action:
     - key: get-schedule
       name: Get capitalization schedule
@@ -85,6 +86,28 @@ modules:
           required: false
           description: Quarter in YYYY-QN format, for example 2026-Q3. Defaults to the
             current quarter.
+    - key: draft-cap-memo
+      name: Draft capitalization memo
+      function: fn-draft-memo
+      actionVerb: CREATE
+      description: Writes the quarter's capitalization memo for a Jira project to a Confluence page (summary, software
+        assets, review items, method and sign-off). Updates the page if it already exists.
+      inputs:
+        projectKey:
+          title: Project key
+          type: string
+          required: true
+          description: Jira project key, for example PAY
+        quarter:
+          title: Quarter
+          type: string
+          required: false
+          description: Quarter in YYYY-QN format, for example 2026-Q3. Defaults to the current quarter.
+        spaceKey:
+          title: Confluence space key
+          type: string
+          required: false
+          description: Confluence space for the memo. Defaults to the space set in Sopher settings.
   rovo:mcp:
     - key: sopher-mcp
       name: Sopher Capitalization
@@ -101,6 +124,8 @@ modules:
       handler: index.explainClassificationAction
     - key: fn-review-queue
       handler: index.listReviewQueueAction
+    - key: fn-draft-memo
+      handler: index.draftMemoAction
 resources:
   - key: dashboard
     path: src/frontend/dashboard.jsx
@@ -117,6 +142,9 @@ permissions:
     - manage:jira-project
     - read:jira-user
     - storage:app
+    - read:space:confluence
+    - read:page:confluence
+    - write:page:confluence
 app:
   runtime:
     name: nodejs22.x

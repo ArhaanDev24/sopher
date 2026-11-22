@@ -21,6 +21,7 @@ const App = () => {
         defaultHourlyRate: String(s.defaultHourlyRate),
         usefulLifeMonths: String(s.usefulLifeMonths),
         currency: s.currency,
+        confluenceSpaceKey: s.confluenceSpaceKey ?? '',
       });
     });
   }, []);
@@ -49,7 +50,6 @@ const App = () => {
 
   return (
     <Stack space="space.200">
-      <Heading as="h1">Sopher settings</Heading>
       {message && <SectionMessage appearance={message.appearance}><Text>{message.text}</Text></SectionMessage>}
 
       <Label labelFor="projects">Projects</Label>
@@ -66,6 +66,10 @@ const App = () => {
 
       <Label labelFor="currency">Currency</Label>
       <Textfield id="currency" {...field('currency')} />
+
+      <Label labelFor="space">Confluence space for memos</Label>
+      <Textfield id="space" placeholder="e.g. FIN" {...field('confluenceSpaceKey')} />
+      <HelperMessage>Space key where the quarterly capitalization memo is published.</HelperMessage>
 
       <Button appearance="primary" onClick={save} isDisabled={saving}>Save</Button>
 

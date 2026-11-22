@@ -5,7 +5,7 @@ import Resolver from '@forge/resolver';
 import api, { route } from '@forge/api';
 
 import {
-  getIssueClassification, getSchedule, normalizeIssueKey, normalizeProjectKey, normalizeQuarter,
+  getIssueClassification, getSchedule, normalizeIssueKey, normalizeProjectKey, normalizeQuarter, publishMemo,
 } from './service.js';
 import { getSettings, saveSettings, setOverride } from './data/store.js';
 import { seedDemoData } from './data/seed.js';
@@ -50,6 +50,8 @@ resolver.define('setOverride', safe(async ({ payload, context }) => {
   });
 }));
 
+resolver.define('publishMemo', safe(({ payload }) => publishMemo(payload)));
+
 resolver.define('saveSettings', safe(({ payload, context }) => {
   // The resolver is shared by all modules, so only accept settings changes from the admin page,
   // which Jira shows to site admins only.
@@ -57,6 +59,7 @@ resolver.define('saveSettings', safe(({ payload, context }) => {
   const patch = {};
   if (payload.defaultHourlyRate !== undefined) patch.defaultHourlyRate = Number(payload.defaultHourlyRate);
   if (payload.usefulLifeMonths !== undefined) patch.usefulLifeMonths = Number(payload.usefulLifeMonths);
+  if (payload.confluenceSpaceKey !== undefined) patch.confluenceSpaceKey = String(payload.confluenceSpaceKey).trim();
   if (payload.currency !== undefined) patch.currency = String(payload.currency).trim().toUpperCase() || 'USD';
   if (payload.projectKeys !== undefined) {
     patch.projectKeys = String(payload.projectKeys).split(/[\s,]+/).map((k) => k.trim().toUpperCase()).filter(Boolean);
@@ -136,4 +139,12 @@ export const explainClassificationAction = actionSafe('explain-classification', 
 export const listReviewQueueAction = actionSafe('list-review-queue', async ({ projectKey, quarter }) => {
   const s = await getSchedule({ projectKey, quarter: normalizeQuarter(quarter) });
   return { projectKey: s.projectKey, quarter: s.quarter, currency: s.currency, count: s.reviewQueue.length, items: s.reviewQueue };
+});
+
+export const draftMemoAction = actionSafe('draft-cap-memo', async ({ projectKey, quarter, spaceKey }) => {
+  const page = await publishMemo({ projectKey, quarter: normalizeQuarter(quarter), spaceKey });
+  return {
+    ...page,
+    note: page.created ? 'Created a new draft memo page.' : `Updated the existing memo page (version ${page.version}).`,
+  };
 });

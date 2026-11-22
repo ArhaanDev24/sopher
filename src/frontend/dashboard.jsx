@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import ForgeReconciler, {
-  Box, DynamicTable, Heading, Inline, Lozenge, SectionMessage, Select, Spinner, Stack, Text, Textfield, Button, xcss,
+  Box, DynamicTable, Heading, Inline, Link, Lozenge, SectionMessage, Select, Spinner, Stack, Text, Textfield, Button, xcss,
 } from '@forge/react';
 import { invoke } from '@forge/bridge';
 import { money, pct, STAGE_LABEL } from './format';
@@ -23,6 +23,9 @@ const App = () => {
   const [schedule, setSchedule] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [spaceKey, setSpaceKey] = useState('');
+  const [publishing, setPublishing] = useState(false);
+  const [memo, setMemo] = useState(null);
 
   useEffect(() => {
     invoke('getBootstrap').then((res) => {
@@ -30,6 +33,7 @@ const App = () => {
       setBoot(res.data);
       setQuarter(res.data.quarters[0]);
       if (res.data.settings.projectKeys[0]) setProjectKey(res.data.settings.projectKeys[0]);
+      setSpaceKey(res.data.settings.confluenceSpaceKey ?? '');
     });
   }, []);
 
@@ -41,6 +45,15 @@ const App = () => {
     setLoading(false);
     if (!res.ok) return setError(res.error);
     setSchedule(res.data);
+    setMemo(null);
+  };
+
+  const publish = async () => {
+    setPublishing(true);
+    setMemo(null);
+    const res = await invoke('publishMemo', { projectKey, quarter, spaceKey });
+    setPublishing(false);
+    setMemo(res);
   };
 
   useEffect(() => {
@@ -93,6 +106,22 @@ const App = () => {
           {schedule.totals.estimatedCost > 0 && (
             <SectionMessage appearance="warning">
               <Text>{money(schedule.totals.estimatedCost, cur)} of this quarter's cost comes from original estimates because no time was logged.</Text>
+            </SectionMessage>
+          )}
+
+          <Inline space="space.100" alignBlock="end">
+            <Textfield aria-label="Confluence space key" placeholder="Confluence space key" value={spaceKey} onChange={(e) => setSpaceKey(e.target.value)} />
+            <Button onClick={publish} isDisabled={!spaceKey.trim() || publishing}>
+              {publishing ? 'Publishing memo…' : `Publish ${schedule.quarter} memo to Confluence`}
+            </Button>
+          </Inline>
+          {memo && !memo.ok && <SectionMessage appearance="error"><Text>{memo.error}</Text></SectionMessage>}
+          {memo?.ok && (
+            <SectionMessage appearance="success">
+              <Text>
+                {memo.data.created ? 'Memo created' : `Memo updated (version ${memo.data.version})`} in {memo.data.spaceKey}.{' '}
+                {memo.data.url && <Link href={memo.data.url} openNewTab>Open {memo.data.title}</Link>}
+              </Text>
             </SectionMessage>
           )}
 
