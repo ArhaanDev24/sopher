@@ -3,7 +3,7 @@
 
 import { classifyIssue } from './engine/classify.js';
 import { buildSchedule } from './engine/schedule.js';
-import { currentQuarter, parseQuarter } from './engine/dates.js';
+import { currentQuarter, parseQuarter, recentQuarters } from './engine/dates.js';
 import { loadIssue, loadProject } from './data/jira.js';
 import { getOverrides, getSettings } from './data/store.js';
 import { buildMemo } from './engine/memo.js';
@@ -35,7 +35,13 @@ export async function getSchedule({ projectKey, quarter }) {
   const key = normalizeProjectKey(projectKey);
   const q = normalizeQuarter(quarter);
   const [{ epics, issues }, settings, overrides] = await Promise.all([loadProject(key), getSettings(), getOverrides()]);
-  return { projectKey: key, ...buildSchedule({ epics, issues, settings, overrides, quarter: q }) };
+  const schedule = buildSchedule({ epics, issues, settings, overrides, quarter: q });
+  // Last four quarters (oldest first), for the trend chart. Pure computation on data already loaded.
+  const trend = recentQuarters(4, q).reverse().map((quarterKey) => {
+    const { totals } = quarterKey === q ? schedule : buildSchedule({ epics, issues, settings, overrides, quarter: quarterKey });
+    return { quarter: quarterKey, capex: totals.capex, opex: totals.opex, amortization: totals.amortization };
+  });
+  return { projectKey: key, ...schedule, trend };
 }
 
 export async function getIssueClassification({ issueKey }) {
