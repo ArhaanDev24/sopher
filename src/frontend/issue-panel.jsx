@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import ForgeReconciler, {
-  Button, ButtonGroup, Heading, Inline, Label, List, ListItem, Lozenge, SectionMessage, Select, Spinner, Stack, Text, TextArea,
+  Button, ButtonGroup, Heading, Inline, Label, Link, List, ListItem, Lozenge, SectionMessage, Select, Spinner, Stack, Text, TextArea,
 } from '@forge/react';
 import { invoke } from '@forge/bridge';
 import { CONFIDENCE_LOZENGE, money, STAGE_LABEL, TREATMENT_LOZENGE } from './format';
@@ -9,6 +9,43 @@ const TREATMENT_OPTIONS = [
   { label: 'Capitalize', value: 'capex' },
   { label: 'Expense', value: 'opex' },
 ];
+
+const PR_APPEARANCE = { MERGED: 'success', OPEN: 'inprogress', DRAFT: 'default', DECLINED: 'removed' };
+
+/** Pull requests, deployments and goals linked in Teamwork Graph, for one work item. */
+const Evidence = ({ label, evidence }) => {
+  if (!evidence) return null;
+  const items = [
+    ...evidence.pullRequests.map((p) => (
+      <ListItem key={`pr-${p.url ?? p.title}`}>
+        <Inline space="space.050" alignBlock="center">
+          <Lozenge appearance={PR_APPEARANCE[p.status] ?? 'default'}>{p.status.toLowerCase()}</Lozenge>
+          {p.url ? <Link href={p.url} openNewTab>{p.title}</Link> : <Text>{p.title}</Text>}
+        </Inline>
+      </ListItem>
+    )),
+    ...evidence.deployments.map((d) => (
+      <ListItem key={`dep-${d.url ?? d.name}-${d.at}`}>
+        <Text>
+          Deployed to {d.environment ?? d.environmentType.toLowerCase()} ({d.state.toLowerCase()}) on {String(d.at ?? '').slice(0, 10)}
+        </Text>
+      </ListItem>
+    )),
+    ...evidence.goals.map((g) => (
+      <ListItem key={`goal-${g.url ?? g.name}`}>
+        <Text>Goal: {g.url ? <Link href={g.url} openNewTab>{g.name}</Link> : g.name}</Text>
+      </ListItem>
+    )),
+  ];
+  return (
+    <Stack space="space.050">
+      <Text size="small">{label}</Text>
+      {items.length > 0
+        ? <List type="unordered">{items}</List>
+        : <Text size="small">{evidence.errors.length ? 'Teamwork Graph unavailable.' : 'No linked pull requests, deployments or goals.'}</Text>}
+    </Stack>
+  );
+};
 
 const App = () => {
   const [data, setData] = useState(null);
@@ -70,6 +107,14 @@ const App = () => {
       <List type="unordered">
         {data.reasons.map((r) => <ListItem key={r}><Text>{r}</Text></ListItem>)}
       </List>
+
+      {data.evidence && (data.evidence.issue || data.evidence.epic) && (
+        <Stack space="space.100">
+          <Heading as="h4">Evidence (Teamwork Graph)</Heading>
+          <Evidence label="This work item" evidence={data.evidence.issue} />
+          {data.epic && <Evidence label={`Epic ${data.epic.key}`} evidence={data.evidence.epic} />}
+        </Stack>
+      )}
 
       {error && <SectionMessage appearance="error"><Text>{error}</Text></SectionMessage>}
 

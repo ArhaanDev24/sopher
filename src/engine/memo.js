@@ -64,13 +64,14 @@ export function buildMemo(schedule, settings, { generatedAt = new Date(), siteUr
     assets.length === 0
       ? '<p>No epics in this project.</p>'
       : table(
-        ['Asset (epic)', 'Stage at quarter end', 'Authorized', 'Placed in service', 'Capitalized this quarter', 'Expensed this quarter', 'Capitalized to date', 'Amortization', 'Net book value'],
+        ['Asset (epic)', 'Stage at quarter end', 'Authorized', 'Placed in service', 'Capitalized this quarter', 'Expensed this quarter', 'Capitalized to date', 'Amortization', 'Net book value', 'Evidence (Teamwork Graph)'],
         assets.map((a) => [
           `${issueLink(a.epicKey)} ${xml(a.summary)}`,
           xml(STAGE_LABEL[a.stageAtQuarterEnd] ?? '—'),
           xml(a.authorizedAt ?? 'Not authorized'),
-          xml(a.releasedAt ?? 'Not released'),
+          xml(a.releasedAt ? `${a.releasedAt}${a.releaseSource === 'deployment' ? ' (first production deployment)' : ''}` : 'Not released'),
           m(a.capex), m(a.opex), m(a.capexToDate), m(a.amortization), m(a.netBookValue),
+          xml(a.evidenceText ?? 'Not checked'),
         ]),
       ),
     unlinked && unlinked.issueCount > 0
@@ -96,6 +97,7 @@ export function buildMemo(schedule, settings, { generatedAt = new Date(), siteUr
     '<li><p>Each time log is classified on its own date, so one issue can be partly capitalized and partly expensed.</p></li>',
     `<li><p>Bugs, support and maintenance (issue types ${xml(settings.expenseIssueTypes.join(', '))}; labels ${xml(settings.maintenanceLabels.join(', '))}) and research or spikes (labels ${xml(settings.researchLabels.join(', '))}) are always expensed.</p></li>`,
     `<li><p>Cost uses a loaded hourly rate of ${m(settings.defaultHourlyRate)} unless a person has their own rate.</p></li>`,
+    '<li><p>Evidence comes from Atlassian Teamwork Graph: pull requests, deployments and goals linked to each epic. If an epic has no release date in Jira, its first successful production deployment is used as the placed-in-service date.</p></li>',
     `<li><p>Capitalized cost is amortized straight-line over ${xml(settings.usefulLifeMonths)} months, starting the month after the asset is placed in service (its release).</p></li>`,
     '</ul>',
 

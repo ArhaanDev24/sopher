@@ -66,6 +66,7 @@ export function buildSchedule({ epics, issues, settings, overrides = {}, quarter
         summary: epic?.summary ?? 'Work not linked to an epic',
         authorizedAt: toDay(epic?.authorizedAt),
         releasedAt: toDay(epic?.releasedAt),
+        releaseSource: epic?.releaseSource ?? null,
         stageAtQuarterEnd: epic ? stageAt(epic, new Date(end.getTime() - 1)) : null,
         issueCount: its.length,
         capex: sum(its, (r) => r.quarterCapex),

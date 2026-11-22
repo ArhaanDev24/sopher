@@ -145,6 +145,10 @@ permissions:
     - read:space:confluence
     - read:page:confluence
     - write:page:confluence
+    - read:graph:issue:jira
+    - read:graph:pull-request:external
+    - read:graph:deployment:external
+    - read:graph:goal:atlassian
 app:
   runtime:
     name: nodejs22.x

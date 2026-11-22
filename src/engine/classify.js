@@ -115,6 +115,9 @@ export function classifyIssue(issue, epic, settings, override) {
         ? `from ${toDay(epic.authorizedAt)} until its release on ${toDay(epic.releasedAt)}`
         : `since ${toDay(epic.authorizedAt)} and is not released yet`;
       reasons.push(`Epic ${epic.key} has been in the application development stage ${window}. Work logged in that window is capitalized; work before or after it is expensed.`);
+      if (epic.releaseSource === 'deployment') {
+        reasons.push(`The release date ${toDay(epic.releasedAt)} comes from the epic's first successful production deployment in Teamwork Graph.`);
+      }
     }
   }
 

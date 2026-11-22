@@ -165,6 +165,7 @@ const App = () => {
               { key: 'opex', content: 'Expensed' },
               { key: 'amort', content: 'Amortization' },
               { key: 'nbv', content: 'Net book value' },
+              { key: 'evidence', content: 'Evidence (Teamwork Graph)' },
             ] }}
             rows={schedule.assets.map((a) => ({
               key: a.epicKey ?? 'none',
@@ -180,6 +181,12 @@ const App = () => {
                 { key: 'opex', content: money(a.opex, cur) },
                 { key: 'amort', content: money(a.amortization, cur) },
                 { key: 'nbv', content: money(a.netBookValue, cur) },
+                {
+                  key: 'evidence',
+                  content: a.epicKey
+                    ? `${a.evidenceText ?? 'Not checked'}${a.releaseSource === 'deployment' ? ` · in service ${a.releasedAt} (deployment)` : ''}`
+                    : '—',
+                },
               ],
             }))}
             emptyView="No epics in this project."

@@ -76,6 +76,7 @@ function releaseDateOf(raw) {
 async function normalizeEpic(requester, raw) {
   const meta = await epicProperty(requester, raw.key);
   return {
+    id: raw.id,
     key: raw.key,
     summary: raw.fields.summary,
     status: raw.fields.status?.name ?? null,
@@ -89,6 +90,7 @@ async function normalizeIssue(requester, raw) {
   const f = raw.fields;
   const worklogs = await fullWorklogs(requester, raw);
   return {
+    id: raw.id,
     key: raw.key,
     summary: f.summary,
     issueType: f.issuetype?.name ?? 'Unknown',

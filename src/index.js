@@ -10,6 +10,7 @@ import {
 import { getSettings, saveSettings, setOverride } from './data/store.js';
 import { seedDemoData } from './data/seed.js';
 import { recentQuarters } from './engine/dates.js';
+import { describeEvidence, summarizeEvidence } from './engine/evidence.js';
 
 const ADMIN_MODULE = 'sopher-admin';
 
@@ -30,12 +31,12 @@ resolver.define('getBootstrap', safe(async () => {
   return { settings, quarters: recentQuarters(6) };
 }));
 
-resolver.define('getSchedule', safe(({ payload }) => getSchedule(payload)));
+resolver.define('getSchedule', safe(({ payload, context }) => getSchedule({ ...payload, cloudId: context.cloudId })));
 
 resolver.define('getIssueClassification', safe(({ context }) => {
   const issueKey = context.extension?.issue?.key;
   if (!issueKey) throw new Error('No issue in context.');
-  return getIssueClassification({ issueKey });
+  return getIssueClassification({ issueKey, cloudId: context.cloudId });
 }));
 
 resolver.define('setOverride', safe(async ({ payload, context }) => {
@@ -50,7 +51,7 @@ resolver.define('setOverride', safe(async ({ payload, context }) => {
   });
 }));
 
-resolver.define('publishMemo', safe(({ payload }) => publishMemo(payload)));
+resolver.define('publishMemo', safe(({ payload, context }) => publishMemo({ ...payload, cloudId: context.cloudId })));
 
 resolver.define('saveSettings', safe(({ payload, context }) => {
   // The resolver is shared by all modules, so only accept settings changes from the admin page,
@@ -88,7 +89,7 @@ const actionSafe = (name, fn) => async (payload) => {
   const { context, ...inputs } = payload ?? {};
   const started = Date.now();
   try {
-    const result = await fn(inputs);
+    const result = await fn({ ...inputs, cloudId: context?.cloudId });
     console.log(`[action] ${name} ${JSON.stringify(inputs)} -> ${result?.error ? `error: ${result.error}` : 'ok'} (${Date.now() - started}ms)`);
     return result;
   } catch (err) {
@@ -97,8 +98,8 @@ const actionSafe = (name, fn) => async (payload) => {
   }
 };
 
-export const getScheduleAction = actionSafe('get-schedule', async ({ projectKey, quarter }) => {
-  const s = await getSchedule({ projectKey, quarter: normalizeQuarter(quarter) });
+export const getScheduleAction = actionSafe('get-schedule', async ({ projectKey, quarter, cloudId }) => {
+  const s = await getSchedule({ projectKey, quarter: normalizeQuarter(quarter), cloudId });
   return {
     projectKey: s.projectKey,
     quarter: s.quarter,
@@ -110,8 +111,8 @@ export const getScheduleAction = actionSafe('get-schedule', async ({ projectKey,
   };
 });
 
-export const explainClassificationAction = actionSafe('explain-classification', async ({ issueKey }) => {
-  const c = await getIssueClassification({ issueKey });
+export const explainClassificationAction = actionSafe('explain-classification', async ({ issueKey, cloudId }) => {
+  const c = await getIssueClassification({ issueKey, cloudId });
   const byStage = {};
   for (const e of c.entries) {
     const b = (byStage[e.stage] ??= { hours: 0, cost: 0, treatment: e.treatment });
@@ -133,16 +134,21 @@ export const explainClassificationAction = actionSafe('explain-classification', 
     hours: c.hours,
     byStage,
     reasons: c.reasons,
+    evidence: {
+      issue: describeEvidence(summarizeEvidence(c.evidence.issue)),
+      epic: c.epic ? describeEvidence(summarizeEvidence(c.evidence.epic)) : null,
+      source: 'Atlassian Teamwork Graph (linked pull requests, deployments and goals)',
+    },
   };
 });
 
-export const listReviewQueueAction = actionSafe('list-review-queue', async ({ projectKey, quarter }) => {
-  const s = await getSchedule({ projectKey, quarter: normalizeQuarter(quarter) });
+export const listReviewQueueAction = actionSafe('list-review-queue', async ({ projectKey, quarter, cloudId }) => {
+  const s = await getSchedule({ projectKey, quarter: normalizeQuarter(quarter), cloudId });
   return { projectKey: s.projectKey, quarter: s.quarter, currency: s.currency, count: s.reviewQueue.length, items: s.reviewQueue };
 });
 
-export const draftMemoAction = actionSafe('draft-cap-memo', async ({ projectKey, quarter, spaceKey }) => {
-  const page = await publishMemo({ projectKey, quarter: normalizeQuarter(quarter), spaceKey });
+export const draftMemoAction = actionSafe('draft-cap-memo', async ({ projectKey, quarter, spaceKey, cloudId }) => {
+  const page = await publishMemo({ projectKey, quarter: normalizeQuarter(quarter), spaceKey, cloudId });
   return {
     ...page,
     note: page.created ? 'Created a new draft memo page.' : `Updated the existing memo page (version ${page.version}).`,
