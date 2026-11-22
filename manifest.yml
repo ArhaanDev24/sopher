@@ -6,7 +6,6 @@ modules:
       resolver:
         function: resolver
       render: native
-
   jira:issuePanel:
     - key: sopher-issue-panel
       title: Capitalization
@@ -15,7 +14,6 @@ modules:
       resolver:
         function: resolver
       render: native
-
   jira:adminPage:
     - key: sopher-admin
       title: Sopher settings
@@ -23,27 +21,12 @@ modules:
       resolver:
         function: resolver
       render: native
-
   rovo:agent:
     - key: cap-analyst
       name: Cap Analyst
-      description: Explains how engineering work in Jira is capitalized or expensed under ASC 350-40 / IAS 38.
-      prompt: |
-        You are Cap Analyst, a technical accounting assistant for software capitalization.
-        You help controllers, accountants, auditors and engineering managers understand how
-        engineering work tracked in Jira is treated: capitalized (capex) or expensed (opex).
-
-        Treatment follows the internal-use software stages (ASC 350-40):
-        - Preliminary project stage (research, discovery, before project authorization): expensed.
-        - Application development stage (from authorization until release): capitalized.
-        - Post-implementation stage (after release), plus bugs and maintenance: expensed.
-
-        Always use your actions to get figures. Never invent numbers, dates or issue keys.
-        When you explain a classification, quote the reasons and evidence the action returns.
-        Quarters look like 2026-Q3. If the user doesn't give a project key or quarter, ask.
-        Show money with its currency, and say when a figure comes from estimates rather than logged time.
-        Remind users that controllers make the final call: Sopher is decision support and
-        every classification can be overridden with a reason.
+      description: Explains how engineering work in Jira is capitalized or expensed
+        under ASC 350-40 / IAS 38.
+      prompt: resource:agent-prompt;prompt.txt
       conversationStarters:
         - What did we capitalize this quarter?
         - Why is this issue capitalized?
@@ -52,13 +35,14 @@ modules:
         - get-schedule
         - explain-classification
         - list-review-queue
-
   action:
     - key: get-schedule
       name: Get capitalization schedule
-      function: action-get-schedule
+      function: fn-get-schedule
       actionVerb: GET
-      description: Returns the capitalization schedule for a Jira project and quarter. It includes capitalized and expensed cost, amortization and net book value per epic (software asset).
+      description: Returns the capitalization schedule for a Jira project and quarter.
+        It includes capitalized and expensed cost, amortization and net book
+        value per epic (software asset).
       inputs:
         projectKey:
           title: Project key
@@ -69,25 +53,26 @@ modules:
           title: Quarter
           type: string
           required: false
-          description: Quarter in YYYY-QN format, for example 2026-Q3. Defaults to the current quarter.
-
+          description: Quarter in YYYY-QN format, for example 2026-Q3. Defaults to the
+            current quarter.
     - key: explain-classification
       name: Explain classification
-      function: action-explain-classification
+      function: fn-explain
       actionVerb: GET
-      description: Explains whether a Jira issue's work is capitalized or expensed, with its project stage, cost breakdown, confidence and reasons.
+      description: Explains whether a Jira issue's work is capitalized or expensed,
+        with its project stage, cost breakdown, confidence and reasons.
       inputs:
         issueKey:
           title: Issue key
           type: string
           required: true
           description: Jira issue key, for example PAY-42
-
     - key: list-review-queue
       name: List review queue
-      function: action-list-review-queue
+      function: fn-review-queue
       actionVerb: GET
-      description: Lists the issues in a project and quarter whose classification needs controller review, with the reason for each.
+      description: Lists the issues in a project and quarter whose classification
+        needs controller review, with the reason for each.
       inputs:
         projectKey:
           title: Project key
@@ -98,8 +83,8 @@ modules:
           title: Quarter
           type: string
           required: false
-          description: Quarter in YYYY-QN format, for example 2026-Q3. Defaults to the current quarter.
-
+          description: Quarter in YYYY-QN format, for example 2026-Q3. Defaults to the
+            current quarter.
   rovo:mcp:
     - key: sopher-mcp
       name: Sopher Capitalization
@@ -107,17 +92,15 @@ modules:
         - get-schedule
         - explain-classification
         - list-review-queue
-
   function:
     - key: resolver
       handler: index.handler
-    - key: action-get-schedule
+    - key: fn-get-schedule
       handler: index.getScheduleAction
-    - key: action-explain-classification
+    - key: fn-explain
       handler: index.explainClassificationAction
-    - key: action-list-review-queue
+    - key: fn-review-queue
       handler: index.listReviewQueueAction
-
 resources:
   - key: dashboard
     path: src/frontend/dashboard.jsx
@@ -125,15 +108,16 @@ resources:
     path: src/frontend/issue-panel.jsx
   - key: admin
     path: src/frontend/admin.jsx
-
+  - key: agent-prompt
+    path: src/agent
 permissions:
   scopes:
     - read:jira-work
     - write:jira-work
+    - manage:jira-project
     - read:jira-user
     - storage:app
-
 app:
   runtime:
     name: nodejs22.x
-  id: ari:cloud:ecosystem::app/00000000-0000-0000-0000-000000000000
+  id: ari:cloud:ecosystem::app/531f3777-ac41-4ef3-8c9c-5ba9aa764708

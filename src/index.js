@@ -4,8 +4,11 @@
 import Resolver from '@forge/resolver';
 import api, { route } from '@forge/api';
 
-import { getIssueClassification, getSchedule, normalizeIssueKey, normalizeQuarter } from './service.js';
+import {
+  getIssueClassification, getSchedule, normalizeIssueKey, normalizeProjectKey, normalizeQuarter,
+} from './service.js';
 import { getSettings, saveSettings, setOverride } from './data/store.js';
+import { seedDemoData } from './data/seed.js';
 import { recentQuarters } from './engine/dates.js';
 
 const ADMIN_MODULE = 'sopher-admin';
@@ -59,6 +62,17 @@ resolver.define('saveSettings', safe(({ payload, context }) => {
     patch.projectKeys = String(payload.projectKeys).split(/[\s,]+/).map((k) => k.trim().toUpperCase()).filter(Boolean);
   }
   return saveSettings(patch);
+}));
+
+resolver.define('seedDemoData', safe(async ({ payload, context }) => {
+  if (context.moduleKey !== ADMIN_MODULE) throw new Error('Demo data can only be loaded from the Sopher admin page.');
+  const projectKey = normalizeProjectKey(payload.projectKey);
+  const result = await seedDemoData(projectKey);
+  const settings = await getSettings();
+  if (!settings.projectKeys.includes(projectKey)) {
+    await saveSettings({ projectKeys: [...settings.projectKeys, projectKey] });
+  }
+  return result;
 }));
 
 export const handler = resolver.getDefinitions();

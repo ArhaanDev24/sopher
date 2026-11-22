@@ -24,7 +24,9 @@ async function jira(requester, path, options = {}) {
     const body = await res.text();
     throw new Error(`Jira request failed (${res.status}): ${body.slice(0, 300)}`);
   }
-  return res.status === 204 ? {} : res.json();
+  // Some writes (e.g. setting an issue property) succeed with an empty body.
+  const text = await res.text();
+  return text ? JSON.parse(text) : {};
 }
 
 /** All issues matching a JQL query, following nextPageToken pagination. */
