@@ -23,6 +23,9 @@ Software companies must capitalize development-stage work on internal-use softwa
 - **Dashboard** (Apps → Capitalization): capitalized vs. expensed totals, capitalization rate, amortization, net book value, a four-quarter trend, each software asset (epic) with its stage and evidence, and the review queue.
 - **Issue panel:** how each issue was treated and why, its Teamwork Graph evidence, and a controller override that requires a reason.
 - **Epic = software asset:** the panel on an epic shows its stage, capitalized cost to date, placed-in-service date, amortization and net book value. It also lets you set the **project authorization date** that starts the capitalizable stage.
+- **Close the quarter, catch drift:** "Close 2026-Q4" freezes the signed-off figures. After that, any change in Jira (a back-dated time log, an override, an issue moved to another epic) is flagged as a **post-close adjustment** with before and after amounts, on the dashboard, in the memo and in the agent's answers.
+- **Ask in Jira:** every review-queue item has a button that posts a targeted question as a Jira comment where it can be fixed, for example "this work isn't linked to an epic, so $570 can't be classified; could you set its parent?" This replaces the quarterly spreadsheet survey.
+- **Operating income effect:** how much higher profit is because development cost was capitalized (capitalized minus amortization). This is the number a CFO asks about.
 - **Confluence memo:** a one-click quarter-end memo (summary, assets, review items, method, sign-off). Publishing again updates the same page.
 - **Teamwork Graph evidence:** pull requests, deployments and goals linked to each epic and issue. An epic with no release in Jira uses its first successful production deployment as its placed-in-service date.
 - **Rovo agent "Cap Analyst"** with actions `get-schedule`, `explain-classification`, `list-review-queue` and `draft-cap-memo`. The read actions are also exposed as an **MCP server** (`rovo:mcp`).
@@ -36,6 +39,10 @@ Software companies must capitalize development-stage work on internal-use softwa
 |---|---|
 | ![Assets and review queue](docs/screenshots/assets-and-review.jpg) | ![Confluence memo](docs/screenshots/memo.jpg) |
 
+| Changed since close (drift detection) | Ask in Jira |
+|---|---|
+| ![Post-close drift](docs/screenshots/post-close-drift.jpg) | ![Ask in Jira](docs/screenshots/ask-in-jira.jpg) |
+
 ## Try it
 
 1. Install Sopher on your Jira site from the installation link on the Devpost page. Add it to Confluence too if you want memos.
@@ -43,18 +50,20 @@ Software companies must capitalize development-stage work on internal-use softwa
 3. Go to **Jira settings → Apps → Sopher settings → Demo data**, enter `DEMO`, and click **Load demo data**.
 4. Open **Apps → Capitalization** and choose **2026-Q3** or **2026-Q4**.
 5. Open **DEMO-4** for a split classification, or **DEMO-3** to set a project authorization date and watch the numbers move.
+6. Click **Close 2026-Q4**, then change something (log time on DEMO-14 dated in November, or override an issue) and click **Refresh**. The change appears under "Changed since close".
+7. In **Needs controller review**, click **Ask on issue** for DEMO-19. A comment appears on the issue.
 
 ## Develop
 
 ```bash
 npm install
-npm test            # engine, demo data, memo, seeder, evidence and personal-data tests
+npm test            # 36 tests: engine, demo data, memo, seeder, evidence, close, nudges, personal data
 forge deploy -e development
 forge install --site <your-site>.atlassian.net --product jira -e development
 ```
 
 The code is laid out as follows:
-- `src/engine/`: pure classification, schedule, dates, memo, evidence and personal-data logic, with no Forge calls
+- `src/engine/`: pure classification, schedule, dates, memo, evidence, quarter-close, nudge and personal-data logic, with no Forge calls
 - `src/data/`: Jira, Confluence, Teamwork Graph and Forge storage access, plus the demo seeder
 - `src/index.js`: UI resolvers, Rovo actions and the daily personal-data job
 - `src/frontend/`: UI Kit pages
