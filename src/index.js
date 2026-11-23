@@ -6,9 +6,11 @@ import api, { privacy, route } from '@forge/api';
 
 import {
   getIssueClassification, getSchedule, normalizeIssueKey, normalizeProjectKey, normalizeQuarter, publishMemo,
-  setEpicAuthorization,
+  setEpicAuthorization, closeQuarter, reopenQuarter, nudgeReviewItem,
 } from './service.js';
-import { getOverrides, getSettings, saveOverrides, saveSettings, setOverride } from './data/store.js';
+import {
+  getCloses, getOverrides, getSettings, saveCloses, saveOverrides, saveSettings, setOverride,
+} from './data/store.js';
 import { accountsToReport, applyAccountUpdates } from './engine/personal-data.js';
 import { seedDemoData } from './data/seed.js';
 import { recentQuarters } from './engine/dates.js';
@@ -60,6 +62,12 @@ resolver.define('setOverride', safe(async ({ payload, context }) => {
 }));
 
 resolver.define('publishMemo', safe(({ payload, context }) => publishMemo({ ...payload, cloudId: context.cloudId })));
+
+resolver.define('closeQuarter', safe(({ payload, context }) => closeQuarter({ ...payload, cloudId: context.cloudId, accountId: context.accountId })));
+
+resolver.define('reopenQuarter', safe(({ payload }) => reopenQuarter(payload)));
+
+resolver.define('nudgeReviewItem', safe(({ payload, context }) => nudgeReviewItem({ ...payload, cloudId: context.cloudId })));
 
 resolver.define('saveSettings', safe(({ payload, context }) => {
   // The resolver is shared by all modules, so only accept settings changes from the admin page,
@@ -115,7 +123,11 @@ export const getScheduleAction = actionSafe('get-schedule', async ({ projectKey,
     totals: s.totals,
     assets: s.assets,
     reviewQueueCount: s.reviewQueue.length,
-    note: 'Amounts are cost (logged hours × loaded rate). estimatedCost is the part based on original estimates, not logged time.',
+    closed: s.close ? { at: s.close.at, by: s.close.byName } : null,
+    postCloseAdjustments: s.drift?.hasDrift ? { totals: s.drift.totals, items: s.drift.changes } : null,
+    note: 'Amounts are cost (logged hours × loaded rate). estimatedCost is the part based on original estimates, not logged time. '
+      + 'operatingIncomeEffect is how much higher operating income is than if everything were expensed. '
+      + 'postCloseAdjustments lists changes made after the quarter was closed.',
   };
 });
 
@@ -181,8 +193,13 @@ export const draftMemoAction = actionSafe('draft-cap-memo', async ({ projectKey,
 // anonymized ("Former user"), and updated accounts get their display name refreshed.
 
 export const personalDataJob = async () => {
-  const overrides = await getOverrides();
-  const accounts = accountsToReport(overrides);
+  // Account IDs live in override audit records and in quarter-close records ("closed by").
+  const [overrides, closes] = await Promise.all([getOverrides(), getCloses()]);
+  const records = {
+    ...Object.fromEntries(Object.entries(overrides).map(([k, v]) => [`o:${k}`, v])),
+    ...Object.fromEntries(Object.entries(closes).map(([k, v]) => [`c:${k}`, v])),
+  };
+  const accounts = accountsToReport(records);
   if (accounts.length === 0) {
     console.log('[personal-data] no stored account IDs');
     return;
@@ -193,7 +210,11 @@ export const personalDataJob = async () => {
     const res = await api.asApp().requestJira(route`/rest/api/3/user?accountId=${accountId}`, { headers: { Accept: 'application/json' } });
     if (res.ok) freshNames[accountId] = (await res.json()).displayName ?? null;
   }
-  const { overrides: next, closed, updated } = applyAccountUpdates(overrides, updates, freshNames);
-  if (closed || updated) await saveOverrides(next);
+  const { overrides: next, closed, updated } = applyAccountUpdates(records, updates, freshNames);
+  if (closed || updated) {
+    const pick = (prefix) => Object.fromEntries(Object.entries(next)
+      .filter(([k]) => k.startsWith(prefix)).map(([k, v]) => [k.slice(prefix.length), v]));
+    await Promise.all([saveOverrides(pick('o:')), saveCloses(pick('c:'))]);
+  }
   console.log(`[personal-data] checked ${accounts.length} account(s): ${closed} closed, ${updated} updated`);
 };

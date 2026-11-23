@@ -41,3 +41,17 @@ test('user text is escaped', () => {
   s.assets[0].summary = 'Payouts <script>';
   assert.ok(!buildMemo(s, settings).body.includes('<script>'));
 });
+
+test('closed quarter with drift shows close status and post-close adjustments', () => {
+  const s = schedule('2026-Q4');
+  s.close = { at: '2026-12-31T18:00:00.000Z', byName: 'Dana', totals: s.totals };
+  s.drift = {
+    hasDrift: true,
+    totals: { capexDelta: 570, opexDelta: -570, amortizationDelta: 0 },
+    changes: [{ key: 'DEMO-8', summary: 'Rounding error', kind: 'changed', before: { capex: 0, opex: 570 }, after: { capex: 570, opex: 0 }, capexDelta: 570, opexDelta: -570 }],
+  };
+  const { body } = buildMemo(s, settings);
+  for (const expected of ['Quarter closed', '2026-12-31', 'by Dana', 'Post-close adjustments', 'DEMO-8', '$0.00 → $570.00', 'Closed quarter memo', 'Operating income effect', '$11,716.67']) {
+    assert.ok(body.includes(expected), `missing ${expected}`);
+  }
+});

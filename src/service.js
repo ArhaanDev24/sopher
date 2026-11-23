@@ -5,7 +5,9 @@ import { classifyIssue } from './engine/classify.js';
 import { buildSchedule } from './engine/schedule.js';
 import { currentQuarter, parseQuarter, recentQuarters } from './engine/dates.js';
 import { loadIssue, loadProject, setEpicMeta } from './data/jira.js';
-import { getOverrides, getSettings } from './data/store.js';
+import { getCloses, getNudges, getOverrides, getSettings, recordNudge, saveCloses } from './data/store.js';
+import { closeKey, diffAgainstClose, snapshotFromSchedule } from './engine/close.js';
+import { commentBody, nudgeFor } from './engine/nudge.js';
 import { buildMemo } from './engine/memo.js';
 import { publishPage } from './data/confluence.js';
 import api, { route } from '@forge/api';
@@ -36,7 +38,9 @@ export function normalizeQuarter(value) {
 export async function getSchedule({ projectKey, quarter, cloudId }) {
   const key = normalizeProjectKey(projectKey);
   const q = normalizeQuarter(quarter);
-  const [{ epics: rawEpics, issues }, settings, overrides] = await Promise.all([loadProject(key), getSettings(), getOverrides()]);
+  const [{ epics: rawEpics, issues }, settings, overrides, closes, nudges] = await Promise.all([
+    loadProject(key), getSettings(), getOverrides(), getCloses(), getNudges(),
+  ]);
   // Teamwork Graph evidence per epic (linked PRs, deployments, goals). A missing release date
   // falls back to the epic's first successful production deployment.
   const evidenceByEpic = cloudId ? await fetchEvidenceByKey(rawEpics, cloudId) : {};
@@ -51,7 +55,63 @@ export async function getSchedule({ projectKey, quarter, cloudId }) {
     const { totals } = quarterKey === q ? schedule : buildSchedule({ epics, issues, settings, overrides, quarter: quarterKey });
     return { quarter: quarterKey, capex: totals.capex, opex: totals.opex, amortization: totals.amortization };
   });
-  return { projectKey: key, ...schedule, trend, graphChecked: Boolean(cloudId) };
+  const close = closes[closeKey(key, q)] ?? null;
+  const full = { projectKey: key, ...schedule, trend, graphChecked: Boolean(cloudId) };
+  full.reviewQueue = full.reviewQueue.map((r) => ({ ...r, nudge: nudges[r.key] ?? null }));
+  full.close = close && { at: close.at, byName: close.byName, totals: close.totals };
+  full.drift = diffAgainstClose(close, full);
+  return full;
+}
+
+async function currentUser() {
+  const res = await api.asUser().requestJira(route`/rest/api/3/myself`, { headers: { Accept: 'application/json' } });
+  return res.ok ? res.json() : {};
+}
+
+/** Freezes the quarter's figures as signed off. Later changes show up as post-close adjustments. */
+export async function closeQuarter({ projectKey, quarter, cloudId, accountId }) {
+  const schedule = await getSchedule({ projectKey, quarter, cloudId });
+  const me = await currentUser();
+  const snapshot = snapshotFromSchedule(schedule, {
+    at: new Date().toISOString(),
+    byAccountId: accountId ?? me.accountId ?? null,
+    byName: me.displayName ?? null,
+  });
+  const closes = await getCloses();
+  closes[closeKey(schedule.projectKey, schedule.quarter)] = snapshot;
+  await saveCloses(closes);
+  return { projectKey: schedule.projectKey, quarter: schedule.quarter, at: snapshot.at, byName: snapshot.byName };
+}
+
+export async function reopenQuarter({ projectKey, quarter }) {
+  const key = normalizeProjectKey(projectKey);
+  const q = normalizeQuarter(quarter);
+  const closes = await getCloses();
+  delete closes[closeKey(key, q)];
+  await saveCloses(closes);
+  return { projectKey: key, quarter: q };
+}
+
+/**
+ * Posts a targeted question as a Jira comment for a review-queue item: on the item itself, or on
+ * its epic when the epic lacks a project authorization date. Runs as the user, so Jira's comment
+ * permission applies and the comment is attributed to them.
+ */
+export async function nudgeReviewItem({ projectKey, quarter, issueKey, cloudId }) {
+  const schedule = await getSchedule({ projectKey, quarter, cloudId });
+  const key = normalizeIssueKey(issueKey);
+  const item = schedule.reviewQueue.find((r) => r.key === key);
+  if (!item) throw new Error(`${key} isn't in the review queue for ${schedule.quarter} any more.`);
+  const epicSummary = schedule.assets.find((a) => a.epicKey === item.epicKey)?.summary ?? null;
+  const nudge = nudgeFor(item, { epicSummary, currency: schedule.currency, quarter: schedule.quarter });
+  const res = await api.asUser().requestJira(route`/rest/api/3/issue/${nudge.targetKey}/comment`, {
+    method: 'POST',
+    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+    body: JSON.stringify(commentBody(nudge.message)),
+  });
+  if (!res.ok) throw new Error(`Couldn't comment on ${nudge.targetKey} (${res.status}). Check that you can comment there.`);
+  const recorded = await recordNudge(key, nudge.kind);
+  return { issueKey: key, postedOn: nudge.targetKey, kind: nudge.kind, at: recorded.at };
 }
 
 export async function getIssueClassification({ issueKey, cloudId }) {

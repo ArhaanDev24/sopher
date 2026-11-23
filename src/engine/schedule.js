@@ -94,6 +94,9 @@ export function buildSchedule({ epics, issues, settings, overrides = {}, quarter
       amortization: sum(assets, (a) => a.amortization),
       netBookValue: sum(assets, (a) => a.netBookValue),
       estimatedCost: sum(rows, (r) => sum(r.entries.filter((e) => e.estimated && inQuarter(e)), (e) => e.cost)),
+      // How much higher operating income is than if every cost were expensed: cost moved to the
+      // balance sheet this quarter, minus amortization flowing back through the P&L.
+      operatingIncomeEffect: round2(capex - sum(assets, (a) => a.amortization)),
     },
     assets,
     reviewQueue: rows

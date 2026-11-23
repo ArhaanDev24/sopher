@@ -26,6 +26,7 @@ test('demo Q4: payouts released and amortizing, fraud still capitalizing, estima
   assert.equal(payouts.amortization, 823.33); // 14820 / 36 for Nov and Dec
   assert.equal(asset(s, 'Fraud rules engine').capex, 11780);
   assert.equal(s.totals.estimatedCost, 2280);
+  assert.equal(s.totals.operatingIncomeEffect, 11716.67); // 12,540 capitalized - 823.33 amortization
   assert.deepEqual(s.reviewQueue.map((r) => r.summary).sort(), ['Merchant onboarding checklist', 'Partner usage reports']);
 });
 

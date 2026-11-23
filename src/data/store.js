@@ -1,10 +1,12 @@
-// App storage (Forge KVS): settings and controller overrides.
+// App storage (Forge KVS): settings, controller overrides, quarter closes and nudges.
 
 import { kvs } from '@forge/kvs';
 import { mergeSettings } from '../engine/classify.js';
 
 const SETTINGS_KEY = 'settings';
 const OVERRIDES_KEY = 'overrides';
+const CLOSES_KEY = 'closes';
+const NUDGES_KEY = 'nudges';
 
 export async function getSettings() {
   return mergeSettings((await kvs.get(SETTINGS_KEY)) ?? {});
@@ -41,4 +43,25 @@ export async function setOverride(issueKey, override) {
 /** Replaces all overrides (used by the daily personal-data job). */
 export async function saveOverrides(all) {
   await kvs.set(OVERRIDES_KEY, all);
+}
+
+/** Map of "PROJECT:YYYY-QN" -> close snapshot (see engine/close.js). */
+export async function getCloses() {
+  return (await kvs.get(CLOSES_KEY)) ?? {};
+}
+
+export async function saveCloses(all) {
+  await kvs.set(CLOSES_KEY, all);
+}
+
+/** Map of issueKey -> { kind, at } for review items someone was asked about in Jira. */
+export async function getNudges() {
+  return (await kvs.get(NUDGES_KEY)) ?? {};
+}
+
+export async function recordNudge(issueKey, kind) {
+  const all = await getNudges();
+  all[issueKey] = { kind, at: new Date().toISOString() };
+  await kvs.set(NUDGES_KEY, all);
+  return all[issueKey];
 }

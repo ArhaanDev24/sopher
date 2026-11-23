@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import ForgeReconciler, {
-  Box, Button, DynamicTable, Heading, Inline, Link, Lozenge, SectionMessage, Select, Spinner, Stack,
+  Box, Button, DynamicTable, Heading, Inline, Link, List, ListItem, Lozenge, SectionMessage, Select, Spinner, Stack,
   StackBarChart, Text, Textfield, xcss,
 } from '@forge/react';
 import { invoke } from '@forge/bridge';
@@ -38,6 +38,8 @@ const App = () => {
   const [spaceKey, setSpaceKey] = useState('');
   const [publishing, setPublishing] = useState(false);
   const [memo, setMemo] = useState(null);
+  const [busy, setBusy] = useState(null); // 'close' | 'reopen' | issue key being nudged
+  const [notice, setNotice] = useState(null);
 
   useEffect(() => {
     invoke('getBootstrap').then((res) => {
@@ -67,6 +69,16 @@ const App = () => {
   useEffect(() => {
     load(projectKey, quarter);
   }, [projectKey, quarter]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const act = async (key, fn, payload, success) => {
+    setBusy(key);
+    setNotice(null);
+    const res = await invoke(fn, { projectKey, quarter, ...payload });
+    setBusy(null);
+    if (!res.ok) return setNotice({ appearance: 'error', text: res.error });
+    setNotice({ appearance: 'success', text: success(res.data) });
+    load(projectKey, quarter);
+  };
 
   const publish = async () => {
     setPublishing(true);
@@ -134,7 +146,54 @@ const App = () => {
             <Stat label="Capitalization rate" value={pct(schedule.totals.capitalizationRate)} />
             <Stat label="Amortization" value={money(schedule.totals.amortization, cur)} />
             <Stat label="Net book value" value={money(schedule.totals.netBookValue, cur)} />
+            <Stat label="Operating income effect" value={`+${money(schedule.totals.operatingIncomeEffect, cur)}`} />
           </Inline>
+
+          <Inline space="space.100" alignBlock="center" shouldWrap>
+            {schedule.close ? (
+              <>
+                <Lozenge appearance="success" isBold>Closed</Lozenge>
+                <Text>
+                  {schedule.quarter} closed on {String(schedule.close.at).slice(0, 10)}
+                  {schedule.close.byName ? ` by ${schedule.close.byName}` : ''}
+                </Text>
+                <Button appearance="subtle" isDisabled={busy !== null}
+                  onClick={() => act('reopen', 'reopenQuarter', {}, (d) => `${d.quarter} reopened.`)}>
+                  Reopen
+                </Button>
+              </>
+            ) : (
+              <>
+                <Lozenge>Open</Lozenge>
+                <Button isDisabled={busy !== null}
+                  onClick={() => act('close', 'closeQuarter', {}, (d) => `${d.quarter} closed. Later changes will show as post-close adjustments.`)}>
+                  {busy === 'close' ? 'Closing…' : `Close ${schedule.quarter}`}
+                </Button>
+                <Text size="small">Freezes these figures as signed off.</Text>
+              </>
+            )}
+          </Inline>
+          {notice && <SectionMessage appearance={notice.appearance}><Text>{notice.text}</Text></SectionMessage>}
+
+          {schedule.drift?.hasDrift && (
+            <SectionMessage appearance="warning" title="Changed since close">
+              <Text>
+                Capitalized {schedule.drift.totals.capexDelta >= 0 ? '+' : ''}{money(schedule.drift.totals.capexDelta, cur)} ·
+                Expensed {schedule.drift.totals.opexDelta >= 0 ? '+' : ''}{money(schedule.drift.totals.opexDelta, cur)} since
+                the quarter was closed. These are post-close adjustments.
+              </Text>
+              <List type="unordered">
+                {schedule.drift.changes.map((c) => (
+                  <ListItem key={c.key}>
+                    <Text>
+                      <Link href={`/browse/${c.key}`}>{c.key}</Link> {c.summary ?? ''}: capitalized {money(c.before.capex, cur)} → {money(c.after.capex, cur)},
+                      expensed {money(c.before.opex, cur)} → {money(c.after.opex, cur)}
+                    </Text>
+                  </ListItem>
+                ))}
+              </List>
+            </SectionMessage>
+          )}
 
           {schedule.totals.estimatedCost > 0 && (
             <SectionMessage appearance="warning">
@@ -198,6 +257,7 @@ const App = () => {
               { key: 'issue', content: 'Issue' },
               { key: 'conf', content: 'Confidence' },
               { key: 'why', content: 'Why' },
+              { key: 'ask', content: 'Ask in Jira' },
             ] }}
             rows={schedule.reviewQueue.map((r) => ({
               key: r.key,
@@ -205,6 +265,18 @@ const App = () => {
                 { key: 'issue', content: <IssueLink issueKey={r.key} summary={r.summary} /> },
                 { key: 'conf', content: <Lozenge appearance={r.confidence === 'low' ? 'removed' : 'moved'}>{r.confidence}</Lozenge> },
                 { key: 'why', content: r.reasons[0] },
+                {
+                  key: 'ask',
+                  content: r.nudge
+                    ? <Lozenge appearance="inprogress">Asked {String(r.nudge.at).slice(0, 10)}</Lozenge>
+                    : (
+                      <Button spacing="compact" isDisabled={busy !== null}
+                        onClick={() => act(r.key, 'nudgeReviewItem', { issueKey: r.key },
+                          (d) => `Asked on ${d.postedOn}: a comment explains what finance needs.`)}>
+                        {busy === r.key ? 'Asking…' : (r.reasons.some((x) => /authorization date/i.test(x)) ? 'Ask on epic' : 'Ask on issue')}
+                      </Button>
+                    ),
+                },
               ],
             }))}
             emptyView="Nothing to review for this quarter."
