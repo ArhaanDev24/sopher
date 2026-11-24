@@ -70,7 +70,7 @@ Sopher reads the work already tracked in Jira and produces the capitalization sc
 ### Accomplishments that we're proud of
 - The same numbers everywhere: the dashboard, issue panel, Confluence memo and agent actions all come from one service. They agreed to the dollar in end-to-end checks on a real site.
 - Every classification can be explained and overridden. Sopher is decision support, and the controller makes the final call.
-- 36 automated tests, including a fake-Jira test that crashes the loader partway and checks that it resumes, and drift tests that replay a late override and a back-dated time log against a closed quarter.
+- 37 automated tests, including a fake-Jira test that crashes the loader partway and checks that it resumes, and drift tests that replay a late override and a back-dated time log against a closed quarter.
 - Every feature was verified end to end on a real Jira and Confluence site: closing Q4, adding a back-dated 2-hour log (flagged as +$190 on DEMO-14), posting a real "Ask in Jira" comment, and republishing the memo with its post-close adjustments.
 
 ### What we learned
@@ -95,8 +95,8 @@ Atlassian Forge, Forge UI Kit, Jira REST API, Confluence REST API, Atlassian Tea
 
 | Bonus prize | Enter? | What we have | Materials |
 |---|---|---|---|
-| Best Agents (Rovo) | Yes | `rovo:agent` "Cap Analyst" plus 4 reusable `action` modules (3 read, 1 create) | Manifest in the repo. Example prompts in section 4. ⚠️ Rovo chat wasn't available on our test sites, so the video can't show a live chat. Show the actions' output through the UI and logs instead, and say so honestly |
-| Best app with Atlassian MCP | Yes | `rovo:mcp` "Sopher Capitalization" exposes get-schedule, explain-classification and list-review-queue at `mcp.atlassian.com/forge/<appId>` | Endpoint confirmed live (OAuth 401 challenge). Same caveat: an admin must activate Rovo and expose the tools |
+| Best Agents (Rovo) | Yes | `rovo:agent` "Cap Analyst" plus 4 reusable `action` modules (3 read, 1 create) | **Verified live in Rovo Chat** on the Codegeist demo site (one-atlas-dngv). It answered the Q4 schedule ($12,540 capitalized, 72%), explained an issue with Sopher's reasons, listed both review items, and drafted the Confluence memo through the CREATE action after Rovo's confirmation step. Show this in the video |
+| Best app with Atlassian MCP | Yes | `rovo:mcp` "Sopher Capitalization" exposes get-schedule, explain-classification and list-review-queue at `mcp.atlassian.com/forge/<appId>`, plus an open-source **[skills/sopher/SKILL.md](skills/sopher/SKILL.md)** that teaches third-party agents to use them | Endpoint confirmed live (OAuth challenge). Connect with `claude mcp add --transport http sopher https://mcp.atlassian.com/forge/531f3777-ac41-4ef3-8c9c-5ba9aa764708` |
 | Best Teamwork Graph integration | Yes | Consumes the Teamwork Graph API (curated queries) for PRs, deployments and goals, with 4 `read:graph:*` scopes | Evidence column, issue panel section, production-deployment release signal |
 | Best Marketplace published app | No | Not listed. A Marketplace submission would disable the installation link, which is mandatory | — |
 
@@ -148,10 +148,10 @@ All data stays on Atlassian infrastructure (no egress). There are no LLM costs: 
 | 2:15–2:45 | Review queue, **Ask on issue** (DEMO-19), then the comment on the issue | "No survey. Finance asks in Jira, where the engineer works, with the dollars at stake." |
 | 2:45–3:25 | **Close 2026-Q4**, log 2h on DEMO-14 dated November, then Refresh | The **Changed since close** warning: "$2,660 → $2,850. A back-dated time log after sign-off. Sopher catches it, so the auditor doesn't have to." Then Reopen. |
 | 3:25–3:55 | Publish memo, then the Confluence page | Summary with operating income, assets with evidence, review items, post-close adjustments (if closed), method, sign-off. |
-| 3:55–4:20 | Manifest and code | `rovo:agent` with 4 actions, `rovo:mcp`, Teamwork Graph scopes. Run `npm test` (36 passing). |
+| 3:55–4:20 | Rovo Chat, then code | Open **Cap Analyst** in Rovo Chat and ask "What needs controller review in DEMO for 2026-Q4?". Then flash the manifest (`rovo:agent`, `rovo:mcp`) and SKILL.md. |
 | 4:20–4:35 | Closing | "Sopher: Jira context in, audit-ready capitalization out. Close the quarter with confidence." |
 
-**Recording tips:** use a 1080p screen recording, and zoom the browser to 110–125% so numbers are readable. Use sopher-dev, which has demo data and the FIN memo space ready. Upload as **Public** to YouTube.
+**Recording tips:** use a 1080p screen recording, and zoom the browser to 110–125% so numbers are readable. Use the Codegeist demo site **one-atlas-dngv.atlassian.net**, which has Rovo Chat, demo data and the FIN memo space ready. Upload as **Public** to YouTube.
 
 ---
 
@@ -159,7 +159,7 @@ All data stays on Atlassian infrastructure (no egress). There are no LLM costs: 
 
 | Criterion | Strengths | Risk and mitigation |
 |---|---|---|
-| Technological implementation | Deterministic engine with 36 tests; real Jira, Confluence and Teamwork Graph integration; resumable loader; works on any project, not one hardcoded path | Rovo and MCP not demoable live. Show the modules and endpoint, and be upfront |
+| Technological implementation | Deterministic engine with 37 tests; real Jira, Confluence and Teamwork Graph integration; resumable, deterministic loader; works on any project, not one hardcoded path; Rovo agent verified live | MCP client demo still to record |
 | Design | Native UI Kit, a consistent story across dashboard, panel, memo and agent, and reasons everywhere | The UI is functional rather than flashy. The video should focus on the workflow |
 | Potential impact | A concrete user (controllers), a concrete pain (survey-based capitalization and post-close surprises), and measurable output (operating income effect, adjustments caught) | Cite how common the survey practice is, without inventing statistics |
 | Innovation | Per-worklog stage classification; epics as assets with amortization; deployments as a placed-in-service signal; quarter close with post-close drift detection; finance questions posted as Jira comments instead of surveys | — |

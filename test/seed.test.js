@@ -81,6 +81,11 @@ test('seeds epics, issues, release and time logs', async () => {
   assert.equal(epics.find((e) => e.fields.summary === 'Instant payouts').props.sopher.authorizedAt, '2026-06-01');
   assert.equal(all.find((i) => i.fields.summary === 'Fraud case export').fields.timetracking.originalEstimate, '24h');
   assert.equal(all.reduce((a, i) => a + i.worklogs.length, 0), totalLogs);
+  // Keys are deterministic: epics DEMO-1..3, then issues in dataset order.
+  assert.equal(jira.issues.get('DEMO-4').fields.summary, 'Payout API endpoints');
+  assert.equal(jira.issues.get('DEMO-6').fields.summary, 'Payout status webhooks');
+  assert.equal(jira.issues.get('DEMO-18').fields.summary, 'Partner usage reports');
+  assert.equal(jira.issues.get('DEMO-19').fields.summary, 'Merchant onboarding checklist');
 });
 
 test('a crashed run can be retried and finishes without duplicates', async () => {

@@ -29,6 +29,7 @@ Software companies must capitalize development-stage work on internal-use softwa
 - **Confluence memo:** a one-click quarter-end memo (summary, assets, review items, method, sign-off). Publishing again updates the same page.
 - **Teamwork Graph evidence:** pull requests, deployments and goals linked to each epic and issue. An epic with no release in Jira uses its first successful production deployment as its placed-in-service date.
 - **Rovo agent "Cap Analyst"** with actions `get-schedule`, `explain-classification`, `list-review-queue` and `draft-cap-memo`. The read actions are also exposed as an **MCP server** (`rovo:mcp`).
+- **Agent skill for MCP clients:** [skills/sopher/SKILL.md](skills/sopher/SKILL.md) teaches third-party agents (Claude, Cursor and others) how to use Sopher's MCP tools: connecting, which tool to call, quarter format, and never inventing figures.
 - **Demo data loader:** fills an empty project with a sample payments team, so you can try Sopher on an empty site.
 
 | Issue panel | Epic as a software asset |
@@ -57,7 +58,7 @@ Software companies must capitalize development-stage work on internal-use softwa
 
 ```bash
 npm install
-npm test            # 36 tests: engine, demo data, memo, seeder, evidence, close, nudges, personal data
+npm test            # 37 tests: engine, demo data, memo, seeder, evidence, close, nudges, personal data, logging
 forge deploy -e development
 forge install --site <your-site>.atlassian.net --product jira -e development
 ```

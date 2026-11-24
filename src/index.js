@@ -101,11 +101,21 @@ export const handler = resolver.getDefinitions();
 // Inputs arrive on `payload`. Return compact JSON (the 5 MB action limit is far above this).
 
 // Each call logs its name, inputs and outcome (no figures), so `forge logs` shows what the agent did.
+// Only these inputs are passed to actions and logged. Rovo also sends platform fields such as a
+// signed contextToken, which must never reach the logs.
+const ACTION_INPUTS = ['projectKey', 'quarter', 'issueKey', 'spaceKey'];
+
+/** Business inputs only, so tokens and other platform fields never reach handlers or logs. */
+export const pickActionInputs = (payload) => Object.fromEntries(
+  ACTION_INPUTS.filter((k) => payload?.[k] !== undefined && payload?.[k] !== null && payload?.[k] !== '').map((k) => [k, payload[k]]),
+);
+
 const actionSafe = (name, fn) => async (payload) => {
-  const { context, ...inputs } = payload ?? {};
+  const inputs = pickActionInputs(payload);
+  const cloudId = payload?.context?.cloudId ?? null;
   const started = Date.now();
   try {
-    const result = await fn({ ...inputs, cloudId: context?.cloudId });
+    const result = await fn({ ...inputs, cloudId });
     console.log(`[action] ${name} ${JSON.stringify(inputs)} -> ${result?.error ? `error: ${result.error}` : 'ok'} (${Date.now() - started}ms)`);
     return result;
   } catch (err) {

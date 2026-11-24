@@ -147,7 +147,9 @@ export async function seedDemoData(projectKey, { now = new Date(), requester = a
   }
 
   // Child issues.
-  const created = await mapLimit(dataset.issues, 4, async (issue) => {
+  // One at a time, in dataset order, so issue keys are the same on every site (DEMO-4 is always
+  // "Payout API endpoints"), which keeps the judge instructions and video script accurate.
+  const created = await mapLimit(dataset.issues, 1, async (issue) => {
     if (existing.has(issue.summary)) return existing.get(issue.summary);
     const optional = { labels: [DEMO_LABEL, ...(issue.labels ?? [])] };
     if (issue.originalEstimateHours) optional.timetracking = { originalEstimate: `${issue.originalEstimateHours}h` };
