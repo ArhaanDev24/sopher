@@ -78,7 +78,6 @@ Context is what makes AI-era finance tooling trustworthy. Deterministic rules ap
 
 ### What's next
 - Per-person loaded rates imported from HR or payroll, and team-level rate cards
-- Automatic removal of account IDs when Atlassian reports an account closed (personal data handling)
 - Pulling project authorization from approved Confluence specs or Atlassian Goals automatically
 - An export to ERP or close tools over the MCP server, plus a Marketplace listing
 
@@ -97,7 +96,7 @@ Atlassian Forge, Forge UI Kit, Jira REST API, Confluence REST API, Atlassian Tea
 |---|---|---|---|
 | Best Agents (Rovo) | Yes | `rovo:agent` "Cap Analyst" plus 4 reusable `action` modules (3 read, 1 create) | **Verified live in Rovo Chat** on the Codegeist demo site (one-atlas-dngv). It answered the Q4 schedule ($12,540 capitalized, 72%), explained an issue with Sopher's reasons, listed both review items, and drafted the Confluence memo through the CREATE action after Rovo's confirmation step. Show this in the video |
 | Best app with Atlassian MCP | Yes | `rovo:mcp` "Sopher Capitalization" exposes get-schedule, explain-classification and list-review-queue at `mcp.atlassian.com/forge/<appId>`, plus an open-source **[skills/sopher/SKILL.md](skills/sopher/SKILL.md)** that teaches third-party agents to use them | **Verified live from Claude Code** on one-atlas-dngv: after signing in through Atlassian OAuth, Claude called Sopher's tools and answered the DEMO 2026-Q4 schedule. Setup: a site admin turns on **Connected apps → Sopher → View app details → Expose tools to MCP-compatible apps** (off by default) for each Sopher install, Jira and Confluence, then `claude mcp add --transport http sopher https://mcp.atlassian.com/forge/531f3777-ac41-4ef3-8c9c-5ba9aa764708`. Show this in the video |
-| Best Teamwork Graph integration | Yes | Consumes the Teamwork Graph API (curated queries) for PRs, deployments and goals, with 4 `read:graph:*` scopes | Evidence column, issue panel section, production-deployment release signal |
+| Best Teamwork Graph integration | Yes | Consumes the Teamwork Graph API (curated queries) for PRs, deployments and goals, with 4 `read:graph:*` scopes | **Verified live** on one-atlas-dngv: with GitHub for Atlassian connected to a demo repo, the Evidence column shows "2 PRs (2 merged) · 1 production deployment" for DEMO-1 and "2 PRs (0 merged)" for DEMO-2, read through `requestTeamworkGraph`. Also shown in the issue panel and memo, and used as a production-deployment release signal |
 | Best Marketplace published app | No | Not listed. A Marketplace submission would disable the installation link, which is mandatory | — |
 
 ---
@@ -152,7 +151,7 @@ All data stays on Atlassian infrastructure (no egress). There are no LLM costs: 
 | 3:55–4:20 | Rovo Chat, then Claude Code over MCP | Open **Cap Analyst** in Rovo Chat and ask "What needs controller review in DEMO for 2026-Q4?". Then, in Claude Code connected to Sopher's MCP server, ask "What did we capitalize in DEMO for 2026-Q4?": "Same numbers, from any agent." Flash the manifest (`rovo:agent`, `rovo:mcp`) and SKILL.md. |
 | 4:20–4:35 | Closing | "Sopher: Jira context in, audit-ready capitalization out. Close the quarter with confidence." |
 
-**Recording tips:** use a 1080p screen recording, and zoom the browser to 110–125% so numbers are readable. Use the Codegeist demo site **one-atlas-dngv.atlassian.net**, which has Rovo Chat, demo data and the FIN memo space ready. Upload as **Public** to YouTube.
+**Recording tips:** use a 1080p screen recording, and zoom the browser to 110–125% so numbers are readable. Use the Codegeist demo site **one-atlas-dngv.atlassian.net**, which has Rovo Chat, demo data, the FIN memo space, and GitHub connected (private repo `payments-demo`, with PRs and a production deployment linked to DEMO issues) ready. Upload as **Public** to YouTube.
 
 ---
 
