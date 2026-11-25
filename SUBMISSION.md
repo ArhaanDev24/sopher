@@ -96,7 +96,7 @@ Atlassian Forge, Forge UI Kit, Jira REST API, Confluence REST API, Atlassian Tea
 | Bonus prize | Enter? | What we have | Materials |
 |---|---|---|---|
 | Best Agents (Rovo) | Yes | `rovo:agent` "Cap Analyst" plus 4 reusable `action` modules (3 read, 1 create) | **Verified live in Rovo Chat** on the Codegeist demo site (one-atlas-dngv). It answered the Q4 schedule ($12,540 capitalized, 72%), explained an issue with Sopher's reasons, listed both review items, and drafted the Confluence memo through the CREATE action after Rovo's confirmation step. Show this in the video |
-| Best app with Atlassian MCP | Yes | `rovo:mcp` "Sopher Capitalization" exposes get-schedule, explain-classification and list-review-queue at `mcp.atlassian.com/forge/<appId>`, plus an open-source **[skills/sopher/SKILL.md](skills/sopher/SKILL.md)** that teaches third-party agents to use them | Endpoint confirmed live (OAuth challenge). Connect with `claude mcp add --transport http sopher https://mcp.atlassian.com/forge/531f3777-ac41-4ef3-8c9c-5ba9aa764708` |
+| Best app with Atlassian MCP | Yes | `rovo:mcp` "Sopher Capitalization" exposes get-schedule, explain-classification and list-review-queue at `mcp.atlassian.com/forge/<appId>`, plus an open-source **[skills/sopher/SKILL.md](skills/sopher/SKILL.md)** that teaches third-party agents to use them | **Verified live from Claude Code** on one-atlas-dngv: after signing in through Atlassian OAuth, Claude called Sopher's tools and answered the DEMO 2026-Q4 schedule. Setup: a site admin turns on **Connected apps → Sopher → View app details → Expose tools to MCP-compatible apps** (off by default) for each Sopher install, Jira and Confluence, then `claude mcp add --transport http sopher https://mcp.atlassian.com/forge/531f3777-ac41-4ef3-8c9c-5ba9aa764708`. Show this in the video |
 | Best Teamwork Graph integration | Yes | Consumes the Teamwork Graph API (curated queries) for PRs, deployments and goals, with 4 `read:graph:*` scopes | Evidence column, issue panel section, production-deployment release signal |
 | Best Marketplace published app | No | Not listed. A Marketplace submission would disable the installation link, which is mandatory | — |
 
@@ -119,6 +119,7 @@ Atlassian Forge, Forge UI Kit, Jira REST API, Confluence REST API, Atlassian Tea
    - "Why is DEMO-4 capitalized?"
    - "What needs controller review in DEMO?"
    - "Draft the 2026-Q4 capitalization memo for DEMO in space FIN"
+12. **MCP (optional):** as a site admin, go to **admin.atlassian.com → your site → Connected apps → Sopher → View app details**, and under **Tools** click **Enable tools**. Do this for each Sopher install (Jira, and Confluence if installed). Then, in an MCP client such as Claude Code, run `claude mcp add --transport http sopher https://mcp.atlassian.com/forge/531f3777-ac41-4ef3-8c9c-5ba9aa764708`, sign in with your Atlassian account, choose your site, and ask "What did we capitalize in DEMO for 2026-Q4?". [skills/sopher/SKILL.md](skills/sopher/SKILL.md) teaches the agent how to use the tools.
 
 The demo data is dated 2026. If you test in 2027, the loader shifts the dates forward by whole quarters, and the figures stay the same.
 
@@ -148,7 +149,7 @@ All data stays on Atlassian infrastructure (no egress). There are no LLM costs: 
 | 2:15–2:45 | Review queue, **Ask on issue** (DEMO-19), then the comment on the issue | "No survey. Finance asks in Jira, where the engineer works, with the dollars at stake." |
 | 2:45–3:25 | **Close 2026-Q4**, log 2h on DEMO-14 dated November, then Refresh | The **Changed since close** warning: "$2,660 → $2,850. A back-dated time log after sign-off. Sopher catches it, so the auditor doesn't have to." Then Reopen. |
 | 3:25–3:55 | Publish memo, then the Confluence page | Summary with operating income, assets with evidence, review items, post-close adjustments (if closed), method, sign-off. |
-| 3:55–4:20 | Rovo Chat, then code | Open **Cap Analyst** in Rovo Chat and ask "What needs controller review in DEMO for 2026-Q4?". Then flash the manifest (`rovo:agent`, `rovo:mcp`) and SKILL.md. |
+| 3:55–4:20 | Rovo Chat, then Claude Code over MCP | Open **Cap Analyst** in Rovo Chat and ask "What needs controller review in DEMO for 2026-Q4?". Then, in Claude Code connected to Sopher's MCP server, ask "What did we capitalize in DEMO for 2026-Q4?": "Same numbers, from any agent." Flash the manifest (`rovo:agent`, `rovo:mcp`) and SKILL.md. |
 | 4:20–4:35 | Closing | "Sopher: Jira context in, audit-ready capitalization out. Close the quarter with confidence." |
 
 **Recording tips:** use a 1080p screen recording, and zoom the browser to 110–125% so numbers are readable. Use the Codegeist demo site **one-atlas-dngv.atlassian.net**, which has Rovo Chat, demo data and the FIN memo space ready. Upload as **Public** to YouTube.
@@ -159,7 +160,7 @@ All data stays on Atlassian infrastructure (no egress). There are no LLM costs: 
 
 | Criterion | Strengths | Risk and mitigation |
 |---|---|---|
-| Technological implementation | Deterministic engine with 37 tests; real Jira, Confluence and Teamwork Graph integration; resumable, deterministic loader; works on any project, not one hardcoded path; Rovo agent verified live | MCP client demo still to record |
+| Technological implementation | Deterministic engine with 37 tests; real Jira, Confluence and Teamwork Graph integration; resumable, deterministic loader; works on any project, not one hardcoded path; Rovo agent and MCP server verified live | MCP needs a site admin to enable tools (documented in step 12) |
 | Design | Native UI Kit, a consistent story across dashboard, panel, memo and agent, and reasons everywhere | The UI is functional rather than flashy. The video should focus on the workflow |
 | Potential impact | A concrete user (controllers), a concrete pain (survey-based capitalization and post-close surprises), and measurable output (operating income effect, adjustments caught) | Cite how common the survey practice is, without inventing statistics |
 | Innovation | Per-worklog stage classification; epics as assets with amortization; deployments as a placed-in-service signal; quarter close with post-close drift detection; finance questions posted as Jira comments instead of surveys | — |

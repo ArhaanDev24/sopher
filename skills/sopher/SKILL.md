@@ -9,7 +9,7 @@ Sopher is an Atlassian Forge app. It classifies engineering work tracked in Jira
 
 ## Connect
 
-Sopher's tools are served by the Atlassian Rovo MCP server. A site admin has to install Sopher and allow its tools to be exposed. Then add the server to your MCP client, for example Claude Code:
+Sopher's tools are served by the Atlassian Rovo MCP server. A site admin has to install Sopher and then turn on its tools, which are off by default: **admin.atlassian.com → the site → Connected apps → Sopher → View app details → Tools → Enable tools**, for every product Sopher is installed on (Jira and Confluence). Until then, sign-in fails with "Your account isn't associated with a supported site", or the tools list fails with "not allowed to expose its tools over the external MCP endpoint". Then add the server to your MCP client, for example Claude Code:
 
 ```bash
 claude mcp add --transport http sopher https://mcp.atlassian.com/forge/531f3777-ac41-4ef3-8c9c-5ba9aa764708

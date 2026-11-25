@@ -53,6 +53,7 @@ Software companies must capitalize development-stage work on internal-use softwa
 5. Open **DEMO-4** for a split classification, or **DEMO-3** to set a project authorization date and watch the numbers move.
 6. Click **Close 2026-Q4**, then change something (log time on DEMO-14 dated in November, or override an issue) and click **Refresh**. The change appears under "Changed since close".
 7. In **Needs controller review**, click **Ask on issue** for DEMO-19. A comment appears on the issue.
+8. **MCP (optional):** in **admin.atlassian.com → your site → Connected apps → Sopher → View app details**, click **Enable tools** under **Tools** for each Sopher install, Jira and Confluence (it's off by default). Then connect an MCP client, for example `claude mcp add --transport http sopher https://mcp.atlassian.com/forge/531f3777-ac41-4ef3-8c9c-5ba9aa764708`, and ask "What did we capitalize in DEMO for 2026-Q4?".
 
 ## Develop
 
