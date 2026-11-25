@@ -4,13 +4,14 @@
 import { classifyIssue } from './engine/classify.js';
 import { buildSchedule } from './engine/schedule.js';
 import { currentQuarter, parseQuarter, recentQuarters } from './engine/dates.js';
-import { loadIssue, loadProject, setEpicMeta } from './data/jira.js';
+import { getProjectProperty, loadIssue, loadProject, setEpicMeta, setProjectProperty } from './data/jira.js';
 import { getCloses, getNudges, getOverrides, getSettings, recordNudge, saveCloses } from './data/store.js';
 import { closeKey, diffAgainstClose, snapshotFromSchedule } from './engine/close.js';
 import { commentBody, nudgeFor } from './engine/nudge.js';
 import { buildMemo } from './engine/memo.js';
 import { publishPage } from './data/confluence.js';
 import api, { route } from '@forge/api';
+import { STATE_PROPERTY, projectOfIssue, projectState, stateFromProperty } from './engine/shared-state.js';
 import { applyReleaseEvidence, describeEvidence, summarizeEvidence } from './engine/evidence.js';
 import { fetchEvidence, fetchEvidenceByKey } from './data/graph.js';
 
@@ -35,12 +36,50 @@ export function normalizeQuarter(value) {
   return q;
 }
 
-export async function getSchedule({ projectKey, quarter, cloudId }) {
+// ---- Stored state ---------------------------------------------------------------------------
+// Settings, overrides, closes and nudges live in the Jira installation's app storage. Callers that
+// may run in another installation (the Confluence macro, Rovo actions, MCP tools) pass
+// shared: true to read the copy the Jira side publishes as a project property instead.
+// See src/engine/shared-state.js.
+
+async function localState() {
+  const [settings, overrides, closes, nudges] = await Promise.all([getSettings(), getOverrides(), getCloses(), getNudges()]);
+  return { settings, overrides, closes, nudges };
+}
+
+async function loadState(projectKey, { shared = false } = {}) {
+  if (shared) {
+    const value = await getProjectProperty(projectKey, STATE_PROPERTY).catch((err) => {
+      console.warn(`[state] couldn't read ${projectKey} state: ${err.message}`);
+      return null;
+    });
+    const mirrored = stateFromProperty(value);
+    if (mirrored) return { ...mirrored, source: 'jira' };
+    return { ...(await localState()), source: 'local' };
+  }
+  return { ...(await localState()), source: 'jira' };
+}
+
+/** Publishes the project's stored state for other installations. Call after every change. */
+export async function syncProjectState(projectKey) {
+  const key = normalizeProjectKey(projectKey);
+  await setProjectProperty(key, STATE_PROPERTY, projectState(key, await localState(), new Date().toISOString()));
+}
+
+/** Like syncProjectState, but never fails the caller: the change itself already succeeded. */
+export async function trySyncProjectState(projectKey) {
+  try {
+    await syncProjectState(projectKey);
+  } catch (err) {
+    console.warn(`[state] couldn't publish ${projectKey} state: ${err.message}`);
+  }
+}
+
+export async function getSchedule({ projectKey, quarter, cloudId, shared = false }) {
   const key = normalizeProjectKey(projectKey);
   const q = normalizeQuarter(quarter);
-  const [{ epics: rawEpics, issues }, settings, overrides, closes, nudges] = await Promise.all([
-    loadProject(key), getSettings(), getOverrides(), getCloses(), getNudges(),
-  ]);
+  const [{ epics: rawEpics, issues }, state] = await Promise.all([loadProject(key), loadState(key, { shared })]);
+  const { settings, overrides, closes, nudges } = state;
   // Teamwork Graph evidence per epic (linked PRs, deployments, goals). A missing release date
   // falls back to the epic's first successful production deployment.
   const evidenceByEpic = cloudId ? await fetchEvidenceByKey(rawEpics, cloudId) : {};
@@ -57,6 +96,9 @@ export async function getSchedule({ projectKey, quarter, cloudId }) {
   });
   const close = closes[closeKey(key, q)] ?? null;
   const full = { projectKey: key, ...schedule, trend, graphChecked: Boolean(cloudId) };
+  // 'local' means a non-Jira installation found no published state, so defaults were used.
+  full.stateSource = state.source;
+  full.personalRatesOmitted = state.personalRatesOmitted ?? 0;
   full.reviewQueue = full.reviewQueue.map((r) => ({ ...r, nudge: nudges[r.key] ?? null }));
   full.close = close && { at: close.at, byName: close.byName, totals: close.totals };
   full.drift = diffAgainstClose(close, full);
@@ -80,6 +122,7 @@ export async function closeQuarter({ projectKey, quarter, cloudId, accountId }) 
   const closes = await getCloses();
   closes[closeKey(schedule.projectKey, schedule.quarter)] = snapshot;
   await saveCloses(closes);
+  await trySyncProjectState(schedule.projectKey);
   return { projectKey: schedule.projectKey, quarter: schedule.quarter, at: snapshot.at, byName: snapshot.byName };
 }
 
@@ -89,6 +132,7 @@ export async function reopenQuarter({ projectKey, quarter }) {
   const closes = await getCloses();
   delete closes[closeKey(key, q)];
   await saveCloses(closes);
+  await trySyncProjectState(key);
   return { projectKey: key, quarter: q };
 }
 
@@ -111,15 +155,16 @@ export async function nudgeReviewItem({ projectKey, quarter, issueKey, cloudId }
   });
   if (!res.ok) throw new Error(`Couldn't comment on ${nudge.targetKey} (${res.status}). Check that you can comment there.`);
   const recorded = await recordNudge(key, nudge.kind);
+  await trySyncProjectState(schedule.projectKey);
   return { issueKey: key, postedOn: nudge.targetKey, kind: nudge.kind, at: recorded.at };
 }
 
-export async function getIssueClassification({ issueKey, cloudId }) {
+export async function getIssueClassification({ issueKey, cloudId, shared = false }) {
   const key = normalizeIssueKey(issueKey);
-  const [loaded, settings, overrides] = await Promise.all([loadIssue(key), getSettings(), getOverrides()]);
+  const [loaded, { settings, overrides }] = await Promise.all([loadIssue(key), loadState(projectOfIssue(key), { shared })]);
   if (!loaded) throw new Error(`Issue ${key} was not found, or you don't have permission to view it.`);
   const { issue } = loaded;
-  if (loaded.asEpic) return getEpicAsset({ epic: loaded.asEpic, cloudId, currency: settings.currency });
+  if (loaded.asEpic) return getEpicAsset({ epic: loaded.asEpic, cloudId, currency: settings.currency, shared });
   const [issueEvidence, epicEvidence] = await Promise.all([
     cloudId ? fetchEvidence({ cloudId, issueId: issue.id }) : null,
     cloudId && loaded.epic ? fetchEvidence({ cloudId, issueId: loaded.epic.id }) : null,
@@ -135,11 +180,11 @@ export async function getIssueClassification({ issueKey, cloudId }) {
 }
 
 /** The software-asset view of an epic: stage, dates, cost to date, amortization and evidence. */
-async function getEpicAsset({ epic, cloudId, currency }) {
+async function getEpicAsset({ epic, cloudId, currency, shared }) {
   const projectKey = epic.key.split('-')[0];
   const quarter = currentQuarter();
   const [schedule, evidence] = await Promise.all([
-    getSchedule({ projectKey, quarter, cloudId }),
+    getSchedule({ projectKey, quarter, cloudId, shared }),
     cloudId ? fetchEvidence({ cloudId, issueId: epic.id }) : null,
   ]);
   const asset = schedule.assets.find((a) => a.epicKey === epic.key) ?? null;
@@ -184,12 +229,12 @@ async function siteBaseUrl() {
 }
 
 /** Generates the quarter's capitalization memo and publishes it to Confluence (creates or updates). */
-export async function publishMemo({ projectKey, quarter, spaceKey, cloudId }) {
-  const settings = await getSettings();
+export async function publishMemo({ projectKey, quarter, spaceKey, cloudId, shared = false }) {
+  const { settings } = await loadState(normalizeProjectKey(projectKey), { shared });
   const space = String(spaceKey ?? settings.confluenceSpaceKey ?? '').trim();
   if (!space) throw new Error('No Confluence space given. Set one in Sopher settings, or pass a space key.');
   if (!SPACE_KEY.test(space)) throw new Error(`"${space}" is not a valid Confluence space key.`);
-  const [schedule, siteUrl] = await Promise.all([getSchedule({ projectKey, quarter, cloudId }), siteBaseUrl()]);
+  const [schedule, siteUrl] = await Promise.all([getSchedule({ projectKey, quarter, cloudId, shared }), siteBaseUrl()]);
   const memo = buildMemo(schedule, settings, { siteUrl });
   const page = await publishPage({ spaceKey: space, title: memo.title, body: memo.body, siteUrl });
   return { ...page, title: memo.title, spaceKey: space, projectKey: schedule.projectKey, quarter: schedule.quarter };

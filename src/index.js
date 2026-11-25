@@ -6,8 +6,9 @@ import api, { privacy, route } from '@forge/api';
 
 import {
   getIssueClassification, getSchedule, normalizeIssueKey, normalizeProjectKey, normalizeQuarter, publishMemo,
-  setEpicAuthorization, closeQuarter, reopenQuarter, nudgeReviewItem,
+  setEpicAuthorization, closeQuarter, reopenQuarter, nudgeReviewItem, trySyncProjectState,
 } from './service.js';
+import { projectOfIssue } from './engine/shared-state.js';
 import {
   getCloses, getOverrides, getSettings, saveCloses, saveOverrides, saveSettings, setOverride,
 } from './data/store.js';
@@ -17,6 +18,9 @@ import { recentQuarters } from './engine/dates.js';
 import { describeEvidence, summarizeEvidence } from './engine/evidence.js';
 
 const ADMIN_MODULE = 'sopher-admin';
+// The Confluence macro runs in Sopher's Confluence installation, which has its own app storage, so
+// it reads the state the Jira side publishes (see src/engine/shared-state.js).
+const MACRO_MODULE = 'sopher-schedule-macro';
 
 /** Every resolver returns { ok, data } or { ok: false, error } so the UI can show readable errors. */
 const safe = (fn) => async (req) => {
@@ -35,7 +39,13 @@ resolver.define('getBootstrap', safe(async () => {
   return { settings, quarters: recentQuarters(6) };
 }));
 
-resolver.define('getSchedule', safe(({ payload, context }) => getSchedule({ ...payload, cloudId: context.cloudId })));
+resolver.define('getSchedule', safe(async ({ payload, context }) => {
+  if (context.moduleKey === MACRO_MODULE) return getSchedule({ ...payload, cloudId: context.cloudId, shared: true });
+  const schedule = await getSchedule({ ...payload, cloudId: context.cloudId });
+  // Opening the dashboard also refreshes the state other installations read.
+  await trySyncProjectState(schedule.projectKey);
+  return schedule;
+}));
 
 resolver.define('getIssueClassification', safe(({ context }) => {
   const issueKey = context.extension?.issue?.key;
@@ -51,14 +61,20 @@ resolver.define('setEpicAuthorization', safe(({ payload, context }) => {
 
 resolver.define('setOverride', safe(async ({ payload, context }) => {
   const issueKey = normalizeIssueKey(context.extension?.issue?.key ?? payload.issueKey);
-  if (payload.clear) return setOverride(issueKey, null);
-  const me = await api.asUser().requestJira(route`/rest/api/3/myself`).then((r) => r.json());
-  return setOverride(issueKey, {
-    treatment: payload.treatment,
-    reason: payload.reason,
-    byAccountId: context.accountId,
-    byName: me.displayName ?? null,
-  });
+  let result = null;
+  if (!payload.clear) {
+    const me = await api.asUser().requestJira(route`/rest/api/3/myself`).then((r) => r.json());
+    result = await setOverride(issueKey, {
+      treatment: payload.treatment,
+      reason: payload.reason,
+      byAccountId: context.accountId,
+      byName: me.displayName ?? null,
+    });
+  } else {
+    await setOverride(issueKey, null);
+  }
+  await trySyncProjectState(projectOfIssue(issueKey));
+  return result;
 }));
 
 resolver.define('publishMemo', safe(({ payload, context }) => publishMemo({ ...payload, cloudId: context.cloudId })));
@@ -69,7 +85,7 @@ resolver.define('reopenQuarter', safe(({ payload }) => reopenQuarter(payload)));
 
 resolver.define('nudgeReviewItem', safe(({ payload, context }) => nudgeReviewItem({ ...payload, cloudId: context.cloudId })));
 
-resolver.define('saveSettings', safe(({ payload, context }) => {
+resolver.define('saveSettings', safe(async ({ payload, context }) => {
   // The resolver is shared by all modules, so only accept settings changes from the admin page,
   // which Jira shows to site admins only.
   if (context.moduleKey !== ADMIN_MODULE) throw new Error('Settings can only be changed from the Sopher admin page.');
@@ -81,7 +97,9 @@ resolver.define('saveSettings', safe(({ payload, context }) => {
   if (payload.projectKeys !== undefined) {
     patch.projectKeys = String(payload.projectKeys).split(/[\s,]+/).map((k) => k.trim().toUpperCase()).filter(Boolean);
   }
-  return saveSettings(patch);
+  const saved = await saveSettings(patch);
+  await Promise.all(saved.projectKeys.map((k) => trySyncProjectState(k)));
+  return saved;
 }));
 
 resolver.define('seedDemoData', safe(async ({ payload, context }) => {
@@ -92,6 +110,7 @@ resolver.define('seedDemoData', safe(async ({ payload, context }) => {
   if (!settings.projectKeys.includes(projectKey)) {
     await saveSettings({ projectKeys: [...settings.projectKeys, projectKey] });
   }
+  await trySyncProjectState(projectKey);
   return result;
 }));
 
@@ -125,7 +144,7 @@ const actionSafe = (name, fn) => async (payload) => {
 };
 
 export const getScheduleAction = actionSafe('get-schedule', async ({ projectKey, quarter, cloudId }) => {
-  const s = await getSchedule({ projectKey, quarter: normalizeQuarter(quarter), cloudId });
+  const s = await getSchedule({ projectKey, quarter: normalizeQuarter(quarter), cloudId, shared: true });
   return {
     projectKey: s.projectKey,
     quarter: s.quarter,
@@ -133,6 +152,7 @@ export const getScheduleAction = actionSafe('get-schedule', async ({ projectKey,
     totals: s.totals,
     assets: s.assets,
     reviewQueueCount: s.reviewQueue.length,
+    settingsSource: s.stateSource === 'local' ? 'defaults (not yet shared from Jira)' : 'Jira',
     closed: s.close ? { at: s.close.at, by: s.close.byName } : null,
     postCloseAdjustments: s.drift?.hasDrift ? { totals: s.drift.totals, items: s.drift.changes } : null,
     note: 'Amounts are cost (logged hours × loaded rate). estimatedCost is the part based on original estimates, not logged time. '
@@ -142,7 +162,7 @@ export const getScheduleAction = actionSafe('get-schedule', async ({ projectKey,
 });
 
 export const explainClassificationAction = actionSafe('explain-classification', async ({ issueKey, cloudId }) => {
-  const c = await getIssueClassification({ issueKey, cloudId });
+  const c = await getIssueClassification({ issueKey, cloudId, shared: true });
   if (c.mode === 'epic') {
     return {
       issueKey: c.key,
@@ -186,12 +206,12 @@ export const explainClassificationAction = actionSafe('explain-classification', 
 });
 
 export const listReviewQueueAction = actionSafe('list-review-queue', async ({ projectKey, quarter, cloudId }) => {
-  const s = await getSchedule({ projectKey, quarter: normalizeQuarter(quarter), cloudId });
+  const s = await getSchedule({ projectKey, quarter: normalizeQuarter(quarter), cloudId, shared: true });
   return { projectKey: s.projectKey, quarter: s.quarter, currency: s.currency, count: s.reviewQueue.length, items: s.reviewQueue };
 });
 
 export const draftMemoAction = actionSafe('draft-cap-memo', async ({ projectKey, quarter, spaceKey, cloudId }) => {
-  const page = await publishMemo({ projectKey, quarter: normalizeQuarter(quarter), spaceKey, cloudId });
+  const page = await publishMemo({ projectKey, quarter: normalizeQuarter(quarter), spaceKey, cloudId, shared: true });
   return {
     ...page,
     note: page.created ? 'Created a new draft memo page.' : `Updated the existing memo page (version ${page.version}).`,
@@ -225,6 +245,12 @@ export const personalDataJob = async () => {
     const pick = (prefix) => Object.fromEntries(Object.entries(next)
       .filter(([k]) => k.startsWith(prefix)).map(([k, v]) => [k.slice(prefix.length), v]));
     await Promise.all([saveOverrides(pick('o:')), saveCloses(pick('c:'))]);
+    // Republish so the shared copies carry the anonymized or refreshed names too.
+    const projects = new Set([
+      ...Object.keys(overrides).map(projectOfIssue),
+      ...Object.keys(closes).map((k) => k.split(':')[0]),
+    ]);
+    await Promise.all([...projects].map((k) => trySyncProjectState(k)));
   }
   console.log(`[personal-data] checked ${accounts.length} account(s): ${closed} closed, ${updated} updated`);
 };

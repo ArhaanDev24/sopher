@@ -49,6 +49,7 @@ Sopher reads the work already tracked in Jira and produces the capitalization sc
 - **Ask in Jira instead of surveying engineers.** Every review-queue item has a button that posts a targeted question as a Jira comment, where the person who can fix it will see it. Items with no epic are asked on the issue; work on an unapproved epic is asked on the epic. Each comment states the cost at stake ("$570 of work logged in 2026-Q4 can't be classified…"). Finance's question becomes work that moves forward inside Jira.
 - **Operating income effect:** the number a CFO asks about. It shows how much higher profit is because development cost was capitalized (capitalized minus amortization: +$11,717 in the demo quarter).
 - **One-click quarter-end memo in Confluence:** summary, assets, review items, method and a sign-off table. Republishing updates the same page with a new version.
+- **Live figures on any Confluence page:** the *Sopher capitalization schedule* macro shows a project's quarter (totals, assets, evidence, close status) straight from Jira, so finance pages never carry stale pasted numbers.
 - **Teamwork Graph evidence:** pull requests, deployments and goals linked to each epic appear next to the numbers. An epic's first successful production deployment can serve as its placed-in-service date.
 - **Rovo agent "Cap Analyst":** a set of reusable actions (`get-schedule`, `explain-classification`, `list-review-queue`, `draft-cap-memo`) that let finance ask questions in chat. The read actions are also exposed as an **MCP server**, so other agents and AI tools can pull the schedule.
 
@@ -57,7 +58,8 @@ Sopher reads the work already tracked in Jira and produces the capitalization sc
 - **A pure classification engine** (`src/engine/`) with no platform calls, so every rule is deterministic, reproducible and unit-tested. It doesn't need an LLM to produce numbers an auditor can rely on.
 - **Jira REST v3:** paginated JQL search, full worklogs, and walking from sub-task to story to epic. Epic metadata is stored as an issue property, so Jira's own permissions govern edits.
 - **Teamwork Graph curated queries** (`requestTeamworkGraph`) for linked PRs, deployments and goals. Graph failures degrade gracefully and never break the schedule.
-- **Confluence REST v2** for the memo, in storage format with all user text escaped.
+- **Confluence REST v2** for the memo, in storage format with all user text escaped, and a `macro` module for live figures.
+- **One source of truth across products.** Forge gives the Jira and Confluence installations separate storage, so after every controller action the Jira side publishes the project's state as a Jira project property. The macro and the Rovo/MCP actions read it with the user's own Jira permissions. Account IDs and personal pay rates never leave Jira's app storage.
 - **Forge storage** for settings and overrides.
 - **A demo-data loader** that writes a realistic payments team into any empty project. It shifts dates by whole quarters so the demo stays current, and it can resume after a failure without duplicating anything.
 
@@ -70,7 +72,7 @@ Sopher reads the work already tracked in Jira and produces the capitalization sc
 ### Accomplishments that we're proud of
 - The same numbers everywhere: the dashboard, issue panel, Confluence memo and agent actions all come from one service. They agreed to the dollar in end-to-end checks on a real site.
 - Every classification can be explained and overridden. Sopher is decision support, and the controller makes the final call.
-- 37 automated tests, including a fake-Jira test that crashes the loader partway and checks that it resumes, and drift tests that replay a late override and a back-dated time log against a closed quarter.
+- 41 automated tests, including a fake-Jira test that crashes the loader partway and checks that it resumes, and drift tests that replay a late override and a back-dated time log against a closed quarter.
 - Every feature was verified end to end on a real Jira and Confluence site: closing Q4, adding a back-dated 2-hour log (flagged as +$190 on DEMO-14), posting a real "Ask in Jira" comment, and republishing the memo with its post-close adjustments.
 
 ### What we learned
@@ -110,7 +112,7 @@ Atlassian Forge, Forge UI Kit, Jira REST API, Confluence REST API, Atlassian Tea
 5. **Issue panel:** open **DEMO-4 "Payout API endpoints"** and click the **Capitalization** app button under the title. It should show **Split**, $5,130 capitalized, $570 expensed, and the reasons.
 6. **Epic asset view:** open **DEMO-3 "Partner analytics portal"** and set **Authorized on** to `2026-10-01`. DEMO-18 moves from the review queue to capitalized. Click **Clear** to undo.
 7. **Override:** on any issue, click **Override**, choose a treatment, give a reason, and save. It appears as audit evidence. Click **Remove override** to undo.
-8. **Confluence memo:** in Sopher settings, set the memo space to a Confluence space key you can edit. On the dashboard, click **Publish memo**.
+8. **Confluence memo:** in Sopher settings, set the memo space to a Confluence space key you can edit. On the dashboard, click **Publish memo**. Then, on any Confluence page, type `/Sopher`, insert **Sopher capitalization schedule**, and enter `DEMO` and `2026-Q4` to see the live figures. Closing the quarter in Jira shows as **Closed** on the page.
 9. **Close and drift:** on the dashboard, click **Close 2026-Q4**. Then log 2 hours on **DEMO-14 "Velocity checks"** dated in November 2026 (or override any issue), and click **Refresh**. A **Changed since close** warning lists the issue with before and after amounts. Click **Reopen** to undo.
 10. **Ask in Jira:** in **Needs controller review**, click **Ask on issue** next to DEMO-19 (or **Ask on epic** next to DEMO-18). A comment explaining what finance needs appears on that issue, and the row shows "Asked".
 11. **Rovo (if your site has Rovo chat):** choose the **Cap Analyst** agent and ask:
@@ -127,9 +129,9 @@ The demo data is dated 2026. If you test in 2027, the loader shifts the dates fo
 ## 5. How Sopher meets the technical requirement (paste into Devpost)
 
 Sopher is a Forge app ("Runs on Atlassian") with these modules and integrations:
-- **Modules:** `jira:globalPage` (dashboard), `jira:issuePanel` (per-issue treatment and the epic asset view), `jira:adminPage` (settings and demo loader), `rovo:agent` (Cap Analyst), four `action` modules, `rovo:mcp`.
+- **Modules:** `jira:globalPage` (dashboard), `jira:issuePanel` (per-issue treatment and the epic asset view), `jira:adminPage` (settings and demo loader), `macro` (live figures in Confluence), `rovo:agent` (Cap Analyst), four `action` modules, `rovo:mcp`.
 - **Jira:** reads issues and worklogs through REST v3, with JQL, pagination and the hierarchy, and stores epic metadata as issue properties.
-- **Confluence:** creates and versions the quarter-end memo through REST v2.
+- **Confluence:** creates and versions the quarter-end memo through REST v2, and embeds live figures in any page with a macro.
 - **Teamwork Graph:** reads linked pull requests, deployments and goals using curated queries with `read:graph:*` scopes, and uses production deployments as a release signal.
 - **Rovo:** an agent plus reusable actions, also exposed through MCP.
 
@@ -147,7 +149,7 @@ All data stays on Atlassian infrastructure (no egress). There are no LLM costs: 
 | 1:40–2:15 | DEMO-3 epic view | Set the authorization date, then show DEMO-18 leave the review queue and the numbers move. Clear it. "The controller decides, and Sopher records why." |
 | 2:15–2:45 | Review queue, **Ask on issue** (DEMO-19), then the comment on the issue | "No survey. Finance asks in Jira, where the engineer works, with the dollars at stake." |
 | 2:45–3:25 | **Close 2026-Q4**, log 2h on DEMO-14 dated November, then Refresh | The **Changed since close** warning: "$2,660 → $2,850. A back-dated time log after sign-off. Sopher catches it, so the auditor doesn't have to." Then Reopen. |
-| 3:25–3:55 | Publish memo, then the Confluence page | Summary with operating income, assets with evidence, review items, post-close adjustments (if closed), method, sign-off. |
+| 3:25–3:55 | Publish memo, then the Confluence page, then the "DEMO capitalization (live)" page | Summary with operating income, assets with evidence, review items, post-close adjustments (if closed), method, sign-off. Then the live macro: "The same numbers, live on any Confluence page." |
 | 3:55–4:20 | Rovo Chat, then Claude Code over MCP | Open **Cap Analyst** in Rovo Chat and ask "What needs controller review in DEMO for 2026-Q4?". Then, in Claude Code connected to Sopher's MCP server, ask "What did we capitalize in DEMO for 2026-Q4?": "Same numbers, from any agent." Flash the manifest (`rovo:agent`, `rovo:mcp`) and SKILL.md. |
 | 4:20–4:35 | Closing | "Sopher: Jira context in, audit-ready capitalization out. Close the quarter with confidence." |
 
@@ -159,7 +161,7 @@ All data stays on Atlassian infrastructure (no egress). There are no LLM costs: 
 
 | Criterion | Strengths | Risk and mitigation |
 |---|---|---|
-| Technological implementation | Deterministic engine with 37 tests; real Jira, Confluence and Teamwork Graph integration; resumable, deterministic loader; works on any project, not one hardcoded path; Rovo agent and MCP server verified live | MCP needs a site admin to enable tools (documented in step 12) |
+| Technological implementation | Deterministic engine with 41 tests; real Jira, Confluence and Teamwork Graph integration; resumable, deterministic loader; works on any project, not one hardcoded path; Rovo agent and MCP server verified live | MCP needs a site admin to enable tools (documented in step 12) |
 | Design | Native UI Kit, a consistent story across dashboard, panel, memo and agent, and reasons everywhere | The UI is functional rather than flashy. The video should focus on the workflow |
 | Potential impact | A concrete user (controllers), a concrete pain (survey-based capitalization and post-close surprises), and measurable output (operating income effect, adjustments caught) | Cite how common the survey practice is, without inventing statistics |
 | Innovation | Per-worklog stage classification; epics as assets with amortization; deployments as a placed-in-service signal; quarter close with post-close drift detection; finance questions posted as Jira comments instead of surveys | — |

@@ -175,3 +175,17 @@ export async function setEpicMeta(epicKey, meta, requester = api.asUser()) {
     body: JSON.stringify({ ...current, ...meta }),
   });
 }
+
+/** A Jira project entity property, or null if it isn't set. Read as the user by default. */
+export async function getProjectProperty(projectKey, propertyKey, requester = api.asUser()) {
+  const res = await jira(requester, route`/rest/api/3/project/${projectKey}/properties/${propertyKey}`);
+  return res?.value ?? null;
+}
+
+/** Writes a Jira project entity property. Written as the app, so any Sopher user's change can sync. */
+export async function setProjectProperty(projectKey, propertyKey, value, requester = api.asApp()) {
+  await jira(requester, route`/rest/api/3/project/${projectKey}/properties/${propertyKey}`, {
+    method: 'PUT',
+    body: JSON.stringify(value),
+  });
+}

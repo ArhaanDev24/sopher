@@ -21,6 +21,17 @@ modules:
       resolver:
         function: resolver
       render: native
+  macro:
+    - key: sopher-schedule-macro
+      title: Sopher capitalization schedule
+      description: Live capitalization figures (capitalized, expensed, amortization, net book value per software
+        asset) for a Jira project and quarter.
+      icon: resource:assets;logo.svg
+      resource: macro
+      resolver:
+        function: resolver
+      render: native
+      config: true
   rovo:agent:
     - key: cap-analyst
       name: Cap Analyst
@@ -140,6 +151,8 @@ resources:
     path: src/frontend/issue-panel.jsx
   - key: admin
     path: src/frontend/admin.jsx
+  - key: macro
+    path: src/frontend/macro.jsx
   - key: agent-prompt
     path: src/agent
   - key: assets

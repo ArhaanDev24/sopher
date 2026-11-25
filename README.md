@@ -27,6 +27,7 @@ Software companies must capitalize development-stage work on internal-use softwa
 - **Ask in Jira:** every review-queue item has a button that posts a targeted question as a Jira comment where it can be fixed, for example "this work isn't linked to an epic, so $570 can't be classified; could you set its parent?" This replaces the quarterly spreadsheet survey.
 - **Operating income effect:** how much higher profit is because development cost was capitalized (capitalized minus amortization). This is the number a CFO asks about.
 - **Confluence memo:** a one-click quarter-end memo (summary, assets, review items, method, sign-off). Publishing again updates the same page.
+- **Live Confluence macro:** insert **Sopher capitalization schedule** on any Confluence page, choose a project and quarter, and the page shows live figures, assets, evidence and close status from Jira. It never goes stale the way a pasted table does.
 - **Teamwork Graph evidence:** pull requests, deployments and goals linked to each epic and issue. An epic with no release in Jira uses its first successful production deployment as its placed-in-service date.
 - **Rovo agent "Cap Analyst"** with actions `get-schedule`, `explain-classification`, `list-review-queue` and `draft-cap-memo`. The read actions are also exposed as an **MCP server** (`rovo:mcp`).
 - **Agent skill for MCP clients:** [skills/sopher/SKILL.md](skills/sopher/SKILL.md) teaches third-party agents (Claude, Cursor and others) how to use Sopher's MCP tools: connecting, which tool to call, quarter format, and never inventing figures.
@@ -53,19 +54,20 @@ Software companies must capitalize development-stage work on internal-use softwa
 5. Open **DEMO-4** for a split classification, or **DEMO-3** to set a project authorization date and watch the numbers move.
 6. Click **Close 2026-Q4**, then change something (log time on DEMO-14 dated in November, or override an issue) and click **Refresh**. The change appears under "Changed since close".
 7. In **Needs controller review**, click **Ask on issue** for DEMO-19. A comment appears on the issue.
-8. **MCP (optional):** in **admin.atlassian.com → your site → Connected apps → Sopher → View app details**, click **Enable tools** under **Tools** for each Sopher install, Jira and Confluence (it's off by default). Then connect an MCP client, for example `claude mcp add --transport http sopher https://mcp.atlassian.com/forge/531f3777-ac41-4ef3-8c9c-5ba9aa764708`, and ask "What did we capitalize in DEMO for 2026-Q4?".
+8. **Confluence macro:** on any Confluence page, type `/Sopher`, insert **Sopher capitalization schedule**, and enter `DEMO` and `2026-Q4`.
+9. **MCP (optional):** in **admin.atlassian.com → your site → Connected apps → Sopher → View app details**, click **Enable tools** under **Tools** for each Sopher install, Jira and Confluence (it's off by default). Then connect an MCP client, for example `claude mcp add --transport http sopher https://mcp.atlassian.com/forge/531f3777-ac41-4ef3-8c9c-5ba9aa764708`, and ask "What did we capitalize in DEMO for 2026-Q4?".
 
 ## Develop
 
 ```bash
 npm install
-npm test            # 37 tests: engine, demo data, memo, seeder, evidence, close, nudges, personal data, logging
+npm test            # 41 tests: engine, demo data, memo, seeder, evidence, close, nudges, personal data, logging, shared state
 forge deploy -e development
 forge install --site <your-site>.atlassian.net --product jira -e development
 ```
 
 The code is laid out as follows:
-- `src/engine/`: pure classification, schedule, dates, memo, evidence, quarter-close, nudge and personal-data logic, with no Forge calls
+- `src/engine/`: pure classification, schedule, dates, memo, evidence, quarter-close, nudge, personal-data and shared-state logic, with no Forge calls
 - `src/data/`: Jira, Confluence, Teamwork Graph and Forge storage access, plus the demo seeder
 - `src/index.js`: UI resolvers, Rovo actions and the daily personal-data job
 - `src/frontend/`: UI Kit pages
