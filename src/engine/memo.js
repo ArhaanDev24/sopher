@@ -112,6 +112,7 @@ export function buildMemo(schedule, settings, { generatedAt = new Date(), siteUr
     '<h2>Method</h2>',
     '<ul>',
     '<li><p>Treatment follows the internal-use software stages of ASC 350-40. Work in the preliminary project stage (before authorization) and the post-implementation stage (after release) is expensed. Work in the application development stage is capitalized.</p></li>',
+    '<li><p>Under ASU 2025-06, which removes the stage wording, the authorization date recorded on each epic marks when the project met the capitalization threshold (authorized, funded and probable to be completed), and the placed-in-service date marks when the software was ready for its intended use. The same boundaries apply.</p></li>',
     '<li><p>Each time log is classified on its own date, so one issue can be partly capitalized and partly expensed.</p></li>',
     `<li><p>Bugs, support and maintenance (issue types ${xml(settings.expenseIssueTypes.join(', '))}; labels ${xml(settings.maintenanceLabels.join(', '))}) and research or spikes (labels ${xml(settings.researchLabels.join(', '))}) are always expensed.</p></li>`,
     `<li><p>Cost uses a loaded hourly rate of ${m(settings.defaultHourlyRate)} unless a person has their own rate.</p></li>`,

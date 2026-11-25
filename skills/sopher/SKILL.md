@@ -35,6 +35,8 @@ Sign in with your Atlassian account when prompted, and choose the site. Every ca
    - post-implementation (after release): expensed
 
    Bugs, maintenance and spikes are always expensed.
+
+   If asked about FASB's ASU 2025-06, which removes the stage wording: Sopher's epic authorization date is the capitalization threshold (authorized, funded, probable to complete) and the placed-in-service date is when the software is ready for its intended use. Those are the same two boundaries, so the figures apply either way. Which standard a company follows is the controller's call.
 4. **Flag estimates.** If `totals.estimatedCost` is above zero, say that part of the cost comes from original estimates, not logged time.
 5. **Report post-close changes clearly.** If `get-schedule` returns `postCloseAdjustments`, the quarter was closed and figures changed afterwards. List each issue with its before → after amounts. Auditors care about these.
 6. **Point to fixes for review items.** For each review-queue item, name the fix: link the issue to an epic, record the epic's authorization date in the Capitalization panel, or have a controller override the treatment with a reason.

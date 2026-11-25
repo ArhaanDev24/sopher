@@ -76,6 +76,8 @@ export function buildSchedule({ epics, issues, settings, overrides = {}, quarter
         accumulatedAmortization: amort.accumulated,
         netBookValue: round2(capexToDate - amort.accumulated),
         reviewCount: its.filter((r) => r.needsReview).length,
+        // The part of this quarter's cost that comes from original estimates, not logged time.
+        estimatedCost: sum(its, (r) => sum(r.entries.filter((e) => e.estimated && inQuarter(e)), (e) => e.cost)),
       };
     })
     .filter((a) => a.epicKey !== null || a.issueCount > 0);

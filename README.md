@@ -2,7 +2,7 @@
 
 # Sopher: software capitalization autopilot for Jira
 
-Sopher turns the engineering work already tracked in Jira into an audit-ready **software capitalization schedule**. It follows ASC 350-40 / IAS 38: it classifies every time log as capitalized or expensed, gives a reason for each decision, amortizes each software asset, and publishes the quarter-end memo to Confluence.
+Sopher turns the engineering work already tracked in Jira into an audit-ready **software capitalization schedule**. It follows ASC 350-40 / IAS 38, and is ready for FASB's new ASU 2025-06: it classifies every time log as capitalized or expensed, gives a reason for each decision, amortizes each software asset, and publishes the quarter-end memo to Confluence.
 
 Built on Atlassian Forge for **Codegeist 2026**, in the *Apps for Business Teams* category (finance).
 
@@ -12,11 +12,15 @@ Built on Atlassian Forge for **Codegeist 2026**, in the *Apps for Business Teams
 
 Software companies must capitalize development-stage work on internal-use software and expense the rest (research, bugs, maintenance, post-release work). Most finance teams estimate the split with quarterly surveys sent to engineers. Sopher uses what Jira already records: what was built, when, by whom and for how long.
 
+### Ready for ASU 2025-06
+
+FASB's **ASU 2025-06** (effective for years starting after Dec 15, 2027; early adoption allowed) removes ASC 350-40's project stages. Capitalization starts once management has authorized and funded the project and it's probable to be completed, and it still ends when the software is ready for its intended use. Sopher already works on exactly those two boundaries: each epic's **authorization date**, set by the controller when the threshold is met, and its **placed-in-service date**, from a Jira release or a production deployment. Research spikes and discovery work, the kind of uncertainty the new threshold excludes, are always expensed. So the same data serves today's stage-based guidance, IAS 38, and the new standard.
+
 ## What it does
 
-- **Classification engine.** Each time log is classified by the project stage on its date:
-  - preliminary (before authorization): expensed
-  - application development: capitalized
+- **Classification engine.** Each time log is classified by where its project stood on that date:
+  - preliminary (before authorization, the capitalization threshold): expensed
+  - application development (authorized, not yet in service): capitalized
   - post-implementation (after release): expensed
 
   Bugs, maintenance and spikes are always expensed. Unclear items go to a review queue. Every decision comes with reasons.

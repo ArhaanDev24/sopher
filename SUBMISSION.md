@@ -30,12 +30,14 @@ Everything the Devpost form asks for, plus a check against the rules and judging
 ### Inspiration
 Every software company has to split engineering cost into two buckets for its financial statements. Building new features on internal-use software is **capitalized** as an asset (ASC 350-40 / IAS 38). Research, bug fixes, maintenance and post-launch work are **expensed**. The split moves reported profit by millions.
 
+And the rules just changed. FASB's **ASU 2025-06** (effective for years starting after Dec 15, 2027; early adoption allowed) removes ASC 350-40's project stages. Capitalization starts once management has authorized and funded the project and it's probable to be completed, and it still ends when the software is ready for its intended use. Sopher already works on exactly those two boundaries: each epic's **authorization date**, set by the controller when the threshold is met, and its **placed-in-service date**, from a Jira release or a production deployment. Research spikes and discovery work, the kind of uncertainty the new threshold excludes, are always expensed. So the same data serves today's stage-based guidance, IAS 38, and the new standard. Controllers adopting it need evidence of *when* each project crossed the threshold, which is exactly what Jira holds.
+
 In practice, finance teams estimate it by sending engineers a spreadsheet survey every quarter ("what % of your time went to new features?"). The answers are guesses, the evidence is thin, and auditors push back. Meanwhile Jira already records exactly what was built, when, by whom and for how long. Nobody turns that context into accounting.
 
 ### What it does
 Sopher reads the work already tracked in Jira and produces the capitalization schedule a controller needs at quarter-end:
 
-- **Classifies every time log, not every issue.** Each worklog is placed in its project's stage on the day it was logged:
+- **Classifies every time log, not every issue.** Each worklog is placed by where its project stood on the day it was logged (before the capitalization threshold, in development, or in service):
   - preliminary (before the project was authorized): expensed
   - application development: capitalized
   - post-implementation (after release): expensed
@@ -80,7 +82,8 @@ Context is what makes AI-era finance tooling trustworthy. Deterministic rules ap
 
 ### What's next
 - Per-person loaded rates imported from HR or payroll, and team-level rate cards
-- Pulling project authorization from approved Confluence specs or Atlassian Goals automatically
+- Pulling project authorization from approved Confluence specs or Atlassian Goals automatically, as audit evidence that the ASU 2025-06 threshold was met
+- A labelled ASU 2025-06 mode for early adopters: the same engine, with the threshold wording in the memo and panels
 - An export to ERP or close tools over the MCP server, plus a Marketplace listing
 
 ### Built with
@@ -143,10 +146,10 @@ All data stays on Atlassian infrastructure (no egress). There are no LLM costs: 
 
 | Time | Show | Say |
 |---|---|---|
-| 0:00–0:25 | Title card, then a spreadsheet survey | "Every software company capitalizes development cost. Most do it with a quarterly survey that asks engineers to guess percentages. Auditors hate it. Jira already knows the answer." |
+| 0:00–0:25 | Title card, then a spreadsheet survey | "Every software company capitalizes development cost. Most do it with a quarterly survey that asks engineers to guess percentages. Auditors hate it, and FASB just rewrote the rules in ASU 2025-06. Jira already knows the answer." |
 | 0:25–1:05 | Dashboard, Q3 then Q4 | Totals, rate, trend chart, then **Operating income effect +$11,717**: "This is what capitalization does to profit this quarter." "Every time log is classified by the project's stage on the day it was logged." |
 | 1:05–1:40 | DEMO-4 issue panel | "Split: May hours before authorization are expensed, the rest is capitalized." Show the reasons and the Teamwork Graph evidence. |
-| 1:40–2:15 | DEMO-3 epic view | Set the authorization date, then show DEMO-18 leave the review queue and the numbers move. Clear it. "The controller decides, and Sopher records why." |
+| 1:40–2:15 | DEMO-3 epic view | Set the authorization date, then show DEMO-18 leave the review queue and the numbers move. Clear it. "This date is the moment the project crosses the capitalization threshold, under today's rules and under ASU 2025-06. The controller decides, and Sopher records why." |
 | 2:15–2:45 | Review queue, **Ask on issue** (DEMO-19), then the comment on the issue | "No survey. Finance asks in Jira, where the engineer works, with the dollars at stake." |
 | 2:45–3:25 | **Close 2026-Q4**, log 2h on DEMO-14 dated November, then Refresh | The **Changed since close** warning: "$2,660 → $2,850. A back-dated time log after sign-off. Sopher catches it, so the auditor doesn't have to." Then Reopen. |
 | 3:25–3:55 | Publish memo, then the Confluence page, then the "DEMO capitalization (live)" page | Summary with operating income, assets with evidence, review items, post-close adjustments (if closed), method, sign-off. Then the live macro: "The same numbers, live on any Confluence page." |
@@ -159,10 +162,12 @@ All data stays on Atlassian infrastructure (no egress). There are no LLM costs: 
 
 ## 7. Judging criteria: where Sopher stands
 
-| Criterion | Strengths | Risk and mitigation |
+Each criterion is worth **20%**, so the video (Presentation) counts as much as the code.
+
+| Criterion (official wording, shortened) | What we have | Risk and what to do about it |
 |---|---|---|
-| Technological implementation | Deterministic engine with 41 tests; real Jira, Confluence and Teamwork Graph integration; resumable, deterministic loader; works on any project, not one hardcoded path; Rovo agent and MCP server verified live | MCP needs a site admin to enable tools (documented in step 12) |
-| Design | Native UI Kit, a consistent story across dashboard, panel, memo and agent, and reasons everywhere | The UI is functional rather than flashy. The video should focus on the workflow |
-| Potential impact | A concrete user (controllers), a concrete pain (survey-based capitalization and post-close surprises), and measurable output (operating income effect, adjustments caught) | Cite how common the survey practice is, without inventing statistics |
-| Innovation | Per-worklog stage classification; epics as assets with amortization; deployments as a placed-in-service signal; quarter close with post-close drift detection; finance questions posted as Jira comments instead of surveys | — |
-| Presentation | Script above, timed to 4:30 | Keep it under 5:00 and show the product working end to end |
+| **Technological implementation:** a genuine, working, non-trivial app when tested, not a wrapper or one hardcoded demo path | Deterministic engine with 41 tests; real Jira (JQL, worklogs, hierarchy, properties), Confluence (memo plus live macro), Teamwork Graph and Rovo; works on any project; a resumable loader with stable keys; state shared safely between the Jira and Confluence installs; agent, MCP and Teamwork Graph all verified live | On a judge's own site, Teamwork Graph evidence shows "None linked" unless they connect GitHub, and MCP needs an admin switch. The testing steps say so; the video shows both working |
+| **Design:** a complete, coherent product, not a proof of concept | One story across dashboard, issue panel, epic view, admin, memo, macro and agent; empty states and readable errors; reasons on every number | UI Kit looks plain. In the video, follow the controller's workflow (classify → review → close → memo) rather than touring screens |
+| **Potential impact:** a credible, specific case for a real problem and audience, shown working | Controllers and technical accountants; replaces the quarterly survey; catches post-close changes; operating income effect | Don't invent statistics. Ground it in the standard: ASC 350-40 / IAS 38 require the split, and FASB's ASU 2025-06 (effective 2028) makes "authorized, funded and probable to complete" the trigger. Sopher's epic authorization date is that trigger |
+| **Innovation:** creative, novel, different from existing tools | Ready for ASU 2025-06 (authorization date as the capitalization threshold); per-worklog classification by where the project stood that day; epics as amortized assets; deployments as a placed-in-service signal; quarter close with drift detection; finance questions posted as Jira comments | Time-tracking and capitalization tools exist, so the video must name what's new: evidence-backed per-log decisions, and drift after sign-off |
+| **Presentation:** the video shows it working end to end and says what problem, for whom and why it matters | Script in section 6, timed to 4:35 | This is all on the recording. Say the problem and the user in the first 20 seconds, show real clicks with no cuts in key flows, and stay under 5:00 |

@@ -121,3 +121,13 @@ test('Q4 schedule: amortization starts the month after release', () => {
   assert.equal(pay.stageAtQuarterEnd, STAGE.POST);
   assert.deepEqual(s.reviewQueue, []);
 });
+
+test('estimated cost is attributed to the epic it belongs to', async () => {
+  const { buildSchedule } = await import('../src/engine/schedule.js');
+  const { demoAsEngineInput } = await import('../src/data/demo-dataset.js');
+  const s = buildSchedule({ ...demoAsEngineInput(), settings: { defaultHourlyRate: 95 }, overrides: {}, quarter: '2026-Q4' });
+  const byKey = Object.fromEntries(s.assets.map((a) => [a.epicKey, a]));
+  assert.equal(byKey['DEMO-2'].estimatedCost, 2280); // DEMO-15 Fraud case export: 24h estimate, no time logged
+  assert.equal(byKey['DEMO-3'].estimatedCost, 0);
+  assert.equal(s.totals.estimatedCost, 2280);
+});
