@@ -13,7 +13,7 @@ import { publishPage } from './data/confluence.js';
 import api, { route } from '@forge/api';
 import { STATE_PROPERTY, projectOfIssue, projectState, stateFromProperty } from './engine/shared-state.js';
 import { applyReleaseEvidence, describeEvidence, summarizeEvidence } from './engine/evidence.js';
-import { fetchEvidence, fetchEvidenceByKey } from './data/graph.js';
+import { fetchEvidence, fetchEvidenceByKey, withTimeout } from './data/graph.js';
 
 const PROJECT_KEY = /^[A-Z][A-Z0-9_]{1,9}$/;
 const ISSUE_KEY = /^[A-Z][A-Z0-9_]{1,9}-\d+$/;
@@ -69,7 +69,7 @@ export async function syncProjectState(projectKey) {
 /** Like syncProjectState, but never fails the caller: the change itself already succeeded. */
 export async function trySyncProjectState(projectKey) {
   try {
-    await syncProjectState(projectKey);
+    await withTimeout(syncProjectState(projectKey), 4000, 'Publishing shared state');
   } catch (err) {
     console.warn(`[state] couldn't publish ${projectKey} state: ${err.message}`);
   }
@@ -78,11 +78,14 @@ export async function trySyncProjectState(projectKey) {
 export async function getSchedule({ projectKey, quarter, cloudId, shared = false }) {
   const key = normalizeProjectKey(projectKey);
   const q = normalizeQuarter(quarter);
+  const t0 = Date.now();
   const [{ epics: rawEpics, issues }, state] = await Promise.all([loadProject(key), loadState(key, { shared })]);
+  const tJira = Date.now();
   const { settings, overrides, closes, nudges } = state;
   // Teamwork Graph evidence per epic (linked PRs, deployments, goals). A missing release date
   // falls back to the epic's first successful production deployment.
   const evidenceByEpic = cloudId ? await fetchEvidenceByKey(rawEpics, cloudId) : {};
+  console.log(`[schedule] ${key} ${q}: jira+state ${tJira - t0}ms, graph ${Date.now() - tJira}ms, ${issues.length} issues`);
   const epics = applyReleaseEvidence(rawEpics, evidenceByEpic);
   const schedule = buildSchedule({ epics, issues, settings, overrides, quarter: q });
   schedule.assets = schedule.assets.map((a) => {

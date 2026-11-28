@@ -62,3 +62,14 @@ test('fetchEvidence builds the work item ARI and never throws', async () => {
   assert.deepEqual(failed.errors, ['network down']);
   assert.deepEqual((await fetchEvidence({}, ok)).errors, ['Missing site or issue id']);
 });
+
+test('a slow Teamwork Graph call degrades to "unavailable" instead of hanging', async () => {
+  const { fetchEvidence } = await import('../src/data/graph.js');
+  const { describeEvidence, summarizeEvidence } = await import('../src/engine/evidence.js');
+  const hanging = { requestTeamworkGraph: () => new Promise(() => {}) };
+  const started = Date.now();
+  const evidence = await fetchEvidence({ cloudId: 'c', issueId: '1' }, hanging, { timeoutMs: 50 });
+  assert.ok(Date.now() - started < 1000);
+  assert.match(evidence.errors[0], /timed out/);
+  assert.equal(describeEvidence(summarizeEvidence(evidence)), 'Teamwork Graph unavailable');
+});
